@@ -3,29 +3,53 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/fondo">
+    android:background="@color/fondo"
+    android:fitsSystemWindows="true">
 
-    <TextView
-        android:id="@+id/titulo_lectura"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/superficie"
-        android:padding="18dp"
-        android:textColor="@color/texto"
-        android:textSize="22sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/cajon_redondeado"
+        android:layout_margin="12dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:id="@+id/titulo_lectura"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/texto"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/boton_menu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="8dp"
+            android:src="@android:drawable/ic_menu_more_vert"
+            android:contentDescription="@string/marcadores" />
+
+    </LinearLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp">
 
         <TextView
             android:id="@+id/texto_biblia"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:lineSpacingExtra="8dp"
-            android:padding="20dp"
+            android:padding="16dp"
             android:textColor="@color/texto"
             android:textSize="18sp" />
 
@@ -36,58 +60,72 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp"
-        android:background="@color/superficie">
+        android:gravity="center">
 
-        <Button
-            android:id="@+id/boton_anterior"
+        <TextView
+            android:id="@+id/btn_anterior"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_weight="1"
-            android:text="@string/anterior" />
+            android:layout_margin="4dp"
+            android:background="@drawable/cajon_redondeado"
+            android:gravity="center"
+            android:text="← Anterior"
+            android:textColor="@color/texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/boton_marcador"
+        <TextView
+            android:id="@+id/btn_marcador"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_weight="1"
-            android:text="@string/guardar_marcador" />
+            android:layout_margin="4dp"
+            android:background="@drawable/cajon_redondeado"
+            android:gravity="center"
+            android:text="★ Marcar"
+            android:textColor="@color/texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/boton_siguiente"
+        <TextView
+            android:id="@+id/btn_siguiente"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_weight="1"
-            android:text="@string/siguiente" />
+            android:layout_margin="4dp"
+            android:background="@drawable/cajon_redondeado"
+            android:gravity="center"
+            android:text="Siguiente →"
+            android:textColor="@color/texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="@color/superficie">
-
-        <Button
-            android:id="@+id/boton_menos"
+        <TextView
+            android:id="@+id/btn_menos"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_weight="1"
-            android:text="A −" />
+            android:layout_margin="4dp"
+            android:background="@drawable/cajon_redondeado"
+            android:gravity="center"
+            android:text="A -"
+            android:textColor="@color/texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/boton_mas"
+        <TextView
+            android:id="@+id/btn_mas"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_weight="1"
-            android:text="A +" />
-
-        <Button
-            android:id="@+id/boton_marcadores"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/marcadores" />
+            android:layout_margin="4dp"
+            android:background="@drawable/cajon_redondeado"
+            android:gravity="center"
+            android:text="A +"
+            android:textColor="@color/texto"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 

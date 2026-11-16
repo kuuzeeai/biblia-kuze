@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.content.Intent
 import android.view.GestureDetector
 import android.view.MotionEvent
-import android.widget.Button
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -17,7 +17,6 @@ class LecturaActivity : AppCompatActivity() {
     private var capitulo = 0
     private lateinit var textoView: TextView
     private lateinit var tituloView: TextView
-    private lateinit var marcadorBtn: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +29,6 @@ class LecturaActivity : AppCompatActivity() {
 
         textoView = findViewById(R.id.texto_biblia)
         tituloView = findViewById(R.id.titulo_lectura)
-        marcadorBtn = findViewById(R.id.boton_marcador)
 
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
@@ -45,20 +43,9 @@ class LecturaActivity : AppCompatActivity() {
         })
         textoView.setOnTouchListener { _, event -> detector.onTouchEvent(event) }
 
-        findViewById<Button>(R.id.boton_anterior).setOnClickListener { anterior() }
-        findViewById<Button>(R.id.boton_siguiente).setOnClickListener { siguiente() }
-
-        findViewById<Button>(R.id.boton_mas).setOnClickListener {
-            cambiarTamano(2)
-        }
-        findViewById<Button>(R.id.boton_menos).setOnClickListener {
-            cambiarTamano(-2)
-        }
-        findViewById<Button>(R.id.boton_marcadores).setOnClickListener {
-            mostrarMarcadores(libros)
-        }
-
-        marcadorBtn.setOnClickListener {
+        findViewById<View>(R.id.btn_anterior).setOnClickListener { anterior() }
+        findViewById<View>(R.id.btn_siguiente).setOnClickListener { siguiente() }
+        findViewById<View>(R.id.btn_marcador).setOnClickListener {
             val agregado = Preferencias.alternarMarcador(this, claveMarcador())
             Toast.makeText(
                 this,
@@ -67,6 +54,12 @@ class LecturaActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT
             ).show()
             actualizarBotonMarcador()
+        }
+        findViewById<View>(R.id.btn_mas).setOnClickListener { cambiarTamano(2) }
+        findViewById<View>(R.id.btn_menos).setOnClickListener { cambiarTamano(-2) }
+
+        findViewById<View>(R.id.boton_menu).setOnClickListener {
+            mostrarMenuOpciones(libros)
         }
 
         aplicarTamano()
@@ -77,6 +70,30 @@ class LecturaActivity : AppCompatActivity() {
         val nuevo = (Preferencias.tamanoLetra(this) + delta).coerceIn(14, 34)
         Preferencias.guardarTamano(this, nuevo)
         aplicarTamano()
+    }
+
+    private fun mostrarMenuOpciones(libros: List<Libro>) {
+        val opciones = arrayOf(
+            if (claveMarcador() in Preferencias.marcadores(this)) "Quitar marcador de este capítulo" else "Guardar marcador de este capítulo",
+            "Ver todos los marcadores"
+        )
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(tituloView.text)
+            .setItems(opciones) { _, which ->
+                if (which == 0) {
+                    val agregado = Preferencias.alternarMarcador(this, claveMarcador())
+                    Toast.makeText(
+                        this,
+                        if (agregado) getString(R.string.guardado_marcador) else getString(R.string.quitado_marcador),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    actualizarBotonMarcador()
+                } else {
+                    mostrarMarcadores(libros)
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun mostrarMarcadores(libros: List<Libro>) {
@@ -122,10 +139,11 @@ class LecturaActivity : AppCompatActivity() {
     }
 
     private fun actualizarBotonMarcador() {
-        marcadorBtn.text = if (claveMarcador() in Preferencias.marcadores(this)) {
-            "★"
+        val btn = findViewById<TextView>(R.id.btn_marcador)
+        if (claveMarcador() in Preferencias.marcadores(this)) {
+            btn.text = "★ Marcado"
         } else {
-            getString(R.string.guardar_marcador)
+            btn.text = "★ Marcar"
         }
     }
 
