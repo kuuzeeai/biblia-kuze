@@ -33,8 +33,8 @@ class LecturaActivity : AppCompatActivity() {
         marcadorBtn = findViewById(R.id.boton_marcador)
 
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(e1: MotionEvent?, e2: MotionEvent?, vx: Float, vy: Float): Boolean {
-                if (e1 == null || e2 == null) return false
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
+                if (e1 == null) return false
                 val dx = e2.x - e1.x
                 if (abs(dx) > 100 && abs(dx) > abs(vy)) {
                     if (dx < 0) siguiente() else anterior()
