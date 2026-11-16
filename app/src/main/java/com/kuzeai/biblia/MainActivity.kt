@@ -45,7 +45,6 @@ class MainActivity : AppCompatActivity() {
         })
 
         findViewById<ImageView>(R.id.boton_ajustes).setOnClickListener {
-            // Mostrar marcadores o ajustes si se desea
             val claves = Preferencias.marcadores(this).sorted()
             if (claves.isEmpty()) {
                 android.widget.Toast.makeText(this, getString(R.string.sin_marcadores), android.widget.Toast.LENGTH_SHORT).show()
@@ -75,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         private val alTocar: (Int) -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-        companion.object {
+        companion object {
             private const val TIPO_SECCION = 0
             private const val TIPO_LIBRO = 1
         }
@@ -87,7 +86,7 @@ class MainActivity : AppCompatActivity() {
 
         private var visible: List<Elemento> = construirLista(todos)
 
-        private static fun construirLista(todos: List<Libro>): List<Elemento> {
+        private fun construirLista(todos: List<Libro>): List<Elemento> {
             val lista = mutableListOf<Elemento>()
             lista.add(Elemento.Seccion("Antiguo Testamento"))
             for (i in 0 until 39) {
