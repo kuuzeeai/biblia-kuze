@@ -1,8 +1,7 @@
 package com.kuzeai.biblia
 
-import android.graphics.Color
-import android.os.Bundle
 import android.content.Intent
+import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
@@ -16,6 +15,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class LecturaActivity : AppCompatActivity() {
 
@@ -25,7 +25,8 @@ class LecturaActivity : AppCompatActivity() {
     private lateinit var textoView: TextView
     private lateinit var tituloView: TextView
     private lateinit var scroll: NestedScrollView
-    private var acumuladoZoom = 1f
+    private var baseZoom = 18f
+    private var zoomPendiente = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,11 +41,12 @@ class LecturaActivity : AppCompatActivity() {
         tituloView = findViewById(R.id.titulo_lectura)
         scroll = findViewById(R.id.scroll_lectura)
 
+        // Deslizar a la izquierda o derecha para cambiar de capítulo
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
                 if (e1 == null) return false
                 val dx = e2.x - e1.x
-                if (abs(dx) > 100 && abs(dx) > abs(vy)) {
+                if (abs(dx) > 80 && abs(dx) > abs(vy) * 1.4f) {
                     if (dx < 0) siguiente() else anterior()
                     return true
                 }
@@ -52,31 +54,38 @@ class LecturaActivity : AppCompatActivity() {
             }
         })
 
+        // Pellizcar con dos dedos para agrandar o achicar la letra
         val zoom = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-            override fun onScale(d: ScaleGestureDetector): Boolean {
-                acumuladoZoom *= d.scaleFactor
-                if (acumuladoZoom > 1.12f) {
-                    cambiarTamano(1)
-                    acumuladoZoom = 1f
-                } else if (acumuladoZoom < 0.88f) {
-                    cambiarTamano(-1)
-                    acumuladoZoom = 1f
-                }
+            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                baseZoom = Preferencias.tamanoLetra(this@LecturaActivity).toFloat()
+                zoomPendiente = false
                 return true
+            }
+
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val nueva = (baseZoom * detector.scaleFactor).coerceIn(14f, 34f)
+                textoView.textSize = nueva
+                zoomPendiente = true
+                return true
+            }
+
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                if (zoomPendiente) {
+                    val final = textoView.textSize.roundToInt().coerceIn(14, 34)
+                    Preferencias.guardarTamano(this@LecturaActivity, final)
+                    zoomPendiente = false
+                }
             }
         })
 
         textoView.setOnTouchListener { _, event ->
             zoom.onTouchEvent(event)
-            detector.onTouchEvent(event)
-            true
+            detector.onTouchEvent(event) || zoom.isInProgress
         }
 
-        findViewById<View>(R.id.btn_primero).setOnClickListener { irACapitulo(0) }
-        findViewById<View>(R.id.btn_anterior).setOnClickListener { anterior() }
-        findViewById<View>(R.id.btn_siguiente).setOnClickListener { siguiente() }
-        findViewById<View>(R.id.btn_ultimo).setOnClickListener { irACapitulo(libro.capitulos.lastIndex) }
-        findViewById<View>(R.id.btn_capitulo).setOnClickListener { mostrarCapitulos() }
+        findViewById<View>(R.id.fab_izquierda).setOnClickListener { mostrarNavegacion() }
+        findViewById<View>(R.id.fab_derecha).setOnClickListener { siguiente() }
+        // fab_audio: aún sin función (lector en voz alta pendiente)
 
         findViewById<View>(R.id.boton_menu).setOnClickListener { mostrarMenu() }
 
@@ -84,15 +93,23 @@ class LecturaActivity : AppCompatActivity() {
         mostrar()
     }
 
-    private fun cambiarTamano(delta: Int) {
-        val nuevo = (Preferencias.tamanoLetra(this) + delta).coerceIn(14, 34)
-        Preferencias.guardarTamano(this, nuevo)
-        aplicarTamano()
-    }
-
     private fun claveCapitulo() = "${libro.nombre}|${capitulo + 1}"
 
     private fun claveVersiculo(versiculo: Int) = "${libro.nombre}|${capitulo + 1}|$versiculo"
+
+    private fun mostrarNavegacion() {
+        AlertDialog.Builder(this)
+            .setTitle("Navegar")
+            .setItems(arrayOf("Libros", "Capítulo", "Versículo")) { _, which ->
+                when (which) {
+                    0 -> finish()
+                    1 -> mostrarCapitulos()
+                    2 -> mostrarVersiculos()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
 
     private fun mostrarMenu() {
         val capMarcado = claveCapitulo() in Preferencias.marcadores(this)
@@ -160,9 +177,7 @@ class LecturaActivity : AppCompatActivity() {
     }
 
     private fun mostrarMarcadores(libros: List<Libro>) {
-        val caps = Preferencias.marcadores(this).map { it to 0 }
-        val vers = Preferencias.marcadoresVersiculo(this).map { it to 1 }
-        val claves = (caps + vers).map { it.first }.sorted()
+        val claves = (Preferencias.marcadores(this) + Preferencias.marcadoresVersiculo(this)).sorted()
         if (claves.isEmpty()) {
             Toast.makeText(this, getString(R.string.sin_marcadores), Toast.LENGTH_SHORT).show()
             return
@@ -196,7 +211,6 @@ class LecturaActivity : AppCompatActivity() {
 
     private fun mostrar() {
         tituloView.text = "${libro.nombre} ${capitulo + 1}"
-        findViewById<TextView>(R.id.btn_capitulo).text = "${capitulo + 1}"
         val marcados = Preferencias.marcadoresVersiculo(this)
         val sb = SpannableStringBuilder()
         for ((num, texto) in libro.capitulos[capitulo]) {
