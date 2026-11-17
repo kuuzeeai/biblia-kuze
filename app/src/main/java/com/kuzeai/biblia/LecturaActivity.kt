@@ -69,10 +69,7 @@ class LecturaActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val libros = Biblia.cargar(this)
-        indiceLibro = intent.getIntExtra("libro", 0)
-        capitulo = intent.getIntExtra("capitulo", 0)
-        val versiculoInicial = intent.getIntExtra("versiculo", 0)
-        libro = libros[indiceLibro]
+        indiceLibro = intent.getIntExtra("libro", _boticios = libros[indiceLibro]
 
         textoView = findViewById(R.id.texto_biblia)
         tituloView = findViewById(R.id.titulo_lectura)

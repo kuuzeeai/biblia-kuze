@@ -6,7 +6,6 @@ import android.speech.tts.UtteranceProgressListener
 
 object LectorVoz {
     private var tts: TextToSpeech? = null
-    private var utteranceId = 0
 
     fun inicializar(context: Context) {
         tts = TextToSpeech(context) { status ->
@@ -24,10 +23,9 @@ object LectorVoz {
     fun hablar(texto: String, callback: (() -> Unit)? = null) {
         tts?.stop()
         val params = android.os.Bundle().apply {
-            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "utterance_$utteranceId")
+            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "utterance_${System.currentTimeMillis()}")
         }
-        tts?.speak(texto, TextToSpeech.QUEUE_FLUSH, params, "utterance_$utteranceId")
-        utteranceId++
+        tts?.speak(texto, TextToSpeech.QUEUE_FLUSH, params, "utterance_${System.currentTimeMillis()}")
         callback?.invoke()
     }
 
