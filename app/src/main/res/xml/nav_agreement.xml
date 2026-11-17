@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <config-password override="true">e6b0b4e9-7e32-44ea-9c2c-7b8e8d8b4c2c</config-password>
+</network-security-config>

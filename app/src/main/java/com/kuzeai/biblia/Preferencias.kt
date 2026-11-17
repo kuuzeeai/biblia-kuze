@@ -1,8 +1,8 @@
 package com.kuzeai.biblia
 
 import android.content.Context
+import kotlin.tuple. Triple
 
-object Preferencias {
     private const val NOMBRE = "biblia_prefs"
     private const val TAMANO = "tamano_letra"
     private const val MARCADORES = "marcadores"

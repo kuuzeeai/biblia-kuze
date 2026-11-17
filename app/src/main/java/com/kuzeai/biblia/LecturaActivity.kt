@@ -2,6 +2,7 @@ package com.kuzeai.biblia
 
 import android.content.Intent
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
@@ -41,13 +42,31 @@ class LecturaActivity : AppCompatActivity() {
     private var navLibro = 0
     private var navCap = 0
 
+    // Lector de voz
+    private lateinit var lector: LectorVoz
+
     companion object {
         private const val ANIM = 280L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_lectura)
+
+        // Si ya había una lectura guardada, abrir directamente en ese libro/capítulo/versículo
+        if (savedInstanceState == null) {
+            val ultima = Preferencias.ultimaLectura(this)
+            if (ultima != null) {
+                startActivity(Intent(this, LecturaActivity::class.java).apply {
+                    putExtra("libro", ultima.first)
+                    putExtra("capitulo", ultima.second)
+                    putExtra("versiculo", ultima.third)
+                })
+                finish()
+                return
+            }
+        }
+
+        setContentView(R.layout.activity_main)
 
         val libros = Biblia.cargar(this)
         indiceLibro = intent.getIntExtra("libro", 0)
@@ -110,7 +129,7 @@ class LecturaActivity : AppCompatActivity() {
         findViewById<View>(R.id.fab_izquierda).setOnClickListener { anterior() }
         findViewById<View>(R.id.fab_derecha).setOnClickListener { siguiente() }
         findViewById<View>(R.id.fab_navegar).setOnClickListener { abrirNavegador() }
-        // fab_audio: lector en voz alta pendiente
+        findViewById<View>(R.id.fab_audio).setOnClickListener { reproducirTexto() }
 
         findViewById<View>(R.id.boton_menu).setOnClickListener { mostrarMenu() }
 
@@ -119,6 +138,10 @@ class LecturaActivity : AppCompatActivity() {
         navLibros.setOnItemClickListener { _, _, pos, _ -> elegirLibro(pos) }
         navCapitulos.setOnItemClickListener { _, _, pos, _ -> elegirCapitulo(pos) }
         navVersiculos.setOnItemClickListener { _, _, pos, _ -> elegirVersiculo(pos) }
+
+        // Configurar lector de voz
+        lector = LectorVoz()
+        lector.inicializar(this)
 
         aplicarTamano()
         mostrar(versiculoInicial)
@@ -384,5 +407,25 @@ class LecturaActivity : AppCompatActivity() {
             return
         }
         mostrar()
+    }
+
+    // ---------- Reproducir texto en voz ----------
+
+    private fun reproducirTexto() {
+        val texto = textoView.text.toString()
+        if (texto.isEmpty()) {
+            Toast.makeText(this, "No hay texto para leer", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (lector.estaReproduciendo()) {
+            lector.pausar()
+        } else {
+            lector.hablar(texto)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        lector.limpiar(this)
     }
 }
