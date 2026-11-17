@@ -7,6 +7,9 @@ object Preferencias {
     private const val TAMANO = "tamano_letra"
     private const val MARCADORES = "marcadores"
     private const val MARCADORES_V = "marcadores_versiculo"
+    private const val ULTIMO_LIBRO = "ultimo_libro"
+    private const val ULTIMO_CAP = "ultimo_cap"
+    private const val ULTIMO_VERS = "ultimo_vers"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(NOMBRE, Context.MODE_PRIVATE)
@@ -47,5 +50,23 @@ object Preferencias {
         }
         prefs(context).edit().putStringSet(MARCADORES_V, actuales).apply()
         return agregado
+    }
+
+    fun guardarUltimaLectura(context: Context, libro: Int, capitulo: Int, versiculo: Int) {
+        prefs(context).edit()
+            .putInt(ULTIMO_LIBRO, libro)
+            .putInt(ULTIMO_CAP, capitulo)
+            .putInt(ULTIMO_VERS, versiculo)
+            .apply()
+    }
+
+    fun ultimaLectura(context: Context): Triple<Int, Int, Int>? {
+        val p = prefs(context)
+        if (!p.contains(ULTIMO_LIBRO)) return null
+        return Triple(
+            p.getInt(ULTIMO_LIBRO, 0),
+            p.getInt(ULTIMO_CAP, 0),
+            p.getInt(ULTIMO_VERS, 0)
+        )
     }
 }

@@ -21,6 +21,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Si ya había una lectura guardada, abrir directamente en ese libro/capítulo/versículo
+        if (savedInstanceState == null) {
+            val ultima = Preferencias.ultimaLectura(this)
+            if (ultima != null) {
+                startActivity(Intent(this, LecturaActivity::class.java).apply {
+                    putExtra("libro", ultima.first)
+                    putExtra("capitulo", ultima.second)
+                    putExtra("versiculo", ultima.third)
+                })
+                finish()
+                return
+            }
+        }
+
         setContentView(R.layout.activity_main)
 
         libros = Biblia.cargar(this)

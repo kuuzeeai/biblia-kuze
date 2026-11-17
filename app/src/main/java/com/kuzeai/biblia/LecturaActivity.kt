@@ -41,6 +41,10 @@ class LecturaActivity : AppCompatActivity() {
     private var navLibro = 0
     private var navCap = 0
 
+    companion object {
+        private const val ANIM = 280L
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lectura)
@@ -48,6 +52,7 @@ class LecturaActivity : AppCompatActivity() {
         val libros = Biblia.cargar(this)
         indiceLibro = intent.getIntExtra("libro", 0)
         capitulo = intent.getIntExtra("capitulo", 0)
+        val versiculoInicial = intent.getIntExtra("versiculo", 0)
         libro = libros[indiceLibro]
 
         textoView = findViewById(R.id.texto_biblia)
@@ -75,14 +80,14 @@ class LecturaActivity : AppCompatActivity() {
 
         // Pellizcar con dos dedos para agrandar o achicar la letra
         val zoom = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            override fun onScaleBegin(d: ScaleGestureDetector): Boolean {
                 baseZoom = Preferencias.tamanoLetra(this@LecturaActivity).toFloat()
                 zoomPendiente = false
                 return true
             }
 
-            override fun onScale(detector: ScaleGestureDetector): Boolean {
-                val nueva = (baseZoom * detector.scaleFactor).coerceIn(14f, 34f)
+            override fun onScale(d: ScaleGestureDetector): Boolean {
+                val nueva = (baseZoom * d.scaleFactor).coerceIn(14f, 34f)
                 textoView.textSize = nueva
                 zoomPendiente = true
                 return true
@@ -105,37 +110,37 @@ class LecturaActivity : AppCompatActivity() {
         findViewById<View>(R.id.fab_izquierda).setOnClickListener { anterior() }
         findViewById<View>(R.id.fab_derecha).setOnClickListener { siguiente() }
         findViewById<View>(R.id.fab_navegar).setOnClickListener { abrirNavegador() }
-        // fab_audio: aún sin función (lector en voz alta pendiente)
+        // fab_audio: lector en voz alta pendiente
 
         findViewById<View>(R.id.boton_menu).setOnClickListener { mostrarMenu() }
 
         findViewById<View>(R.id.nav_atras).setOnClickListener { pasoAtras() }
 
-        // Listas del navegador
         navLibros.setOnItemClickListener { _, _, pos, _ -> elegirLibro(pos) }
         navCapitulos.setOnItemClickListener { _, _, pos, _ -> elegirCapitulo(pos) }
         navVersiculos.setOnItemClickListener { _, _, pos, _ -> elegirVersiculo(pos) }
 
         aplicarTamano()
-        mostrar()
+        mostrar(versiculoInicial)
     }
 
     // ---------- Navegador a pantalla completa ----------
 
     private fun abrirNavegador() {
-        navLibro = indiceLibro
-        navCap = capitulo
-        navPaso = 0
-        cargarLibros()
+        when (navPaso) {
+            0 -> cargarLibros()
+            1 -> cargarCapitulos()
+            2 -> cargarVersiculos()
+        }
         val ancho = resources.displayMetrics.widthPixels
         navegador.translationX = ancho.toFloat()
         navegador.visibility = View.VISIBLE
-        navegador.animate().translationX(0f).setDuration(280).start()
+        navegador.animate().translationX(0f).setDuration(ANIM).start()
     }
 
     private fun cerrarNavegador() {
         val ancho = resources.displayMetrics.widthPixels
-        navegador.animate().translationX(ancho.toFloat()).setDuration(240)
+        navegador.animate().translationX(ancho.toFloat()).setDuration(ANIM)
             .withEndAction {
                 navegador.visibility = View.GONE
                 navegador.translationX = 0f
@@ -149,8 +154,7 @@ class LecturaActivity : AppCompatActivity() {
         val libros = Biblia.cargar(this)
         val nombres = libros.mapIndexed { i, l -> "${l.nombre}  (${l.capitulos.size})" }
         navLibros.adapter = ArrayAdapter(this, R.layout.item_lista, R.id.texto_item, nombres)
-        cambiarVista(navLibros, null, desdeIzquierda = false)
-        cerrarCapitulos()
+        mostrarSolo(navLibros, desdeIzquierda = false)
     }
 
     private fun cargarCapitulos() {
@@ -159,36 +163,30 @@ class LecturaActivity : AppCompatActivity() {
         val total = Biblia.cargar(this)[navLibro].capitulos.size
         val numeros = Array(total) { "Capítulo ${it + 1}" }.toList()
         navCapitulos.adapter = ArrayAdapter(this, R.layout.item_capsula, R.id.texto_capsula, numeros)
-        cambiarVista(navCapitulos, navLibros, desdeIzquierda = true)
-        cerrarVersiculos()
+        mostrarSolo(navCapitulos, desdeIzquierda = true)
     }
 
     private fun cargarVersiculos() {
         navPaso = 2
         val libro = Biblia.cargar(this)[navLibro]
         navTitulo.text = "${libro.nombre} ${navCap + 1} — Versículos"
-        val versiculos = libro.capitulos[navCap]
-        val nombres = versiculos.map { (num, texto) -> "$num. $texto" }
+        val total = libro.capitulos[navCap].size
+        val nombres = List(total) { "Versículo ${it + 1}" }
         navVersiculos.adapter = ArrayAdapter(this, R.layout.item_capsula, R.id.texto_capsula, nombres)
-        cambiarVista(navVersiculos, navCapitulos, desdeIzquierda = true)
+        mostrarSolo(navVersiculos, desdeIzquierda = true)
     }
 
-    private fun cambiarVista(entrante: View, saliente: View?, desdeIzquierda: Boolean) {
-        saliente?.visibility = View.GONE
+    private fun mostrarSolo(entrante: View, desdeIzquierda: Boolean) {
         val ancho = resources.displayMetrics.widthPixels
+        for (v in listOf(navLibros, navCapitulos, navVersiculos)) {
+            if (v != entrante) {
+                v.visibility = View.GONE
+                v.translationX = 0f
+            }
+        }
         entrante.translationX = if (desdeIzquierda) -ancho.toFloat() else ancho.toFloat()
         entrante.visibility = View.VISIBLE
-        entrante.animate().translationX(0f).setDuration(280).start()
-    }
-
-    private fun cerrarCapitulos() {
-        navCapitulos.visibility = View.GONE
-        navCapitulos.translationX = 0f
-    }
-
-    private fun cerrarVersiculos() {
-        navVersiculos.visibility = View.GONE
-        navVersiculos.translationX = 0f
+        entrante.animate().translationX(0f).setDuration(ANIM).start()
     }
 
     private fun elegirLibro(pos: Int) {
@@ -315,6 +313,10 @@ class LecturaActivity : AppCompatActivity() {
 
     private fun mostrar(versiculoDestino: Int? = null) {
         tituloView.text = "${libro.nombre} ${capitulo + 1}"
+        navLibro = indiceLibro
+        navCap = capitulo
+        Preferencias.guardarUltimaLectura(this, indiceLibro, capitulo, versiculoDestino ?: 0)
+
         val marcados = Preferencias.marcadoresVersiculo(this)
         val versiculos = libro.capitulos[capitulo]
         val sb = SpannableStringBuilder()
@@ -334,7 +336,7 @@ class LecturaActivity : AppCompatActivity() {
         }
         textoView.text = sb
 
-        if (versiculoDestino != null) {
+        if (versiculoDestino != null && versiculoDestino > 0) {
             val offset = inicios[versiculoDestino] ?: 0
             textoView.post {
                 val layout = textoView.layout ?: return@post
