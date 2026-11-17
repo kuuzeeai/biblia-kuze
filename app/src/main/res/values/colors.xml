@@ -6,4 +6,5 @@
     <color name="texto">#FF2B2B2B</color>
     <color name="texto_sec">#FF6B635C</color>
     <color name="borde">#FFE0DAD2</color>
+    <color name="fondo_marcado">#66F5D7A1</color>
 </resources>

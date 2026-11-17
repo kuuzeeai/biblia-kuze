@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Biblia Reina Valera</string>
-    <string name="titulo">Biblia Reina Valera 1960</string>
+    <string name="app_name">Biblia</string>
+    <string name="titulo">Biblia</string>
     <string name="libros">Libros</string>
     <string name="capitulos">Capítulos</string>
     <string name="buscar">Buscar en la Biblia…</string>
@@ -11,6 +11,10 @@
     <string name="sin_marcadores">Aún no hay marcadores.</string>
     <string name="anterior">Anterior</string>
     <string name="siguiente">Siguiente</string>
+    <string name="marcar_capitulo">Marcar capítulo</string>
+    <string name="quitar_marcador_capitulo">Quitar marcador del capítulo</string>
+    <string name="marcar_versiculo">Marcar un versículo…</string>
+    <string name="seleccionar_versiculo">Toca un versículo para marcarlo</string>
     <string name="guardar_marcador">Guardar marcador</string>
     <string name="quitado_marcador">Marcador quitado</string>
     <string name="guardado_marcador">Marcador guardado</string>

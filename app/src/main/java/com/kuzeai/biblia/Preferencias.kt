@@ -6,6 +6,7 @@ object Preferencias {
     private const val NOMBRE = "biblia_prefs"
     private const val TAMANO = "tamano_letra"
     private const val MARCADORES = "marcadores"
+    private const val MARCADORES_V = "marcadores_versiculo"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(NOMBRE, Context.MODE_PRIVATE)
@@ -29,6 +30,22 @@ object Preferencias {
             true
         }
         prefs(context).edit().putStringSet(MARCADORES, actuales).apply()
+        return agregado
+    }
+
+    fun marcadoresVersiculo(context: Context): Set<String> =
+        prefs(context).getStringSet(MARCADORES_V, emptySet()) ?: emptySet()
+
+    fun alternarMarcadorVersiculo(context: Context, clave: String): Boolean {
+        val actuales = marcadoresVersiculo(context).toMutableSet()
+        val agregado = if (clave in actuales) {
+            actuales.remove(clave)
+            false
+        } else {
+            actuales.add(clave)
+            true
+        }
+        prefs(context).edit().putStringSet(MARCADORES_V, actuales).apply()
         return agregado
     }
 }
