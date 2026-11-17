@@ -124,6 +124,15 @@ class LecturaActivity : AppCompatActivity() {
         mostrar(versiculoInicial)
     }
 
+    // El gesto/botón de atrás del sistema devuelve una pestaña en el navegador
+    override fun onBackPressed() {
+        if (::navegador.isInitialized && navegador.visibility == View.VISIBLE) {
+            pasoAtras()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     // ---------- Navegador a pantalla completa ----------
 
     private fun abrirNavegador() {
