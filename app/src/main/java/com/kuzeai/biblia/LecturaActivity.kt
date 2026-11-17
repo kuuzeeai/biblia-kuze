@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.GridView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -34,8 +35,8 @@ class LecturaActivity : AppCompatActivity() {
     private lateinit var navegador: View
     private lateinit var navTitulo: TextView
     private lateinit var navLibros: ListView
-    private lateinit var navCapitulos: ListView
-    private lateinit var navVersiculos: ListView
+    private lateinit var navCapitulos: GridView
+    private lateinit var navVersiculos: GridView
     private var navPaso = 0 // 0 = libros, 1 = capítulos, 2 = versículos
     private var navLibro = 0
     private var navCap = 0
@@ -157,7 +158,7 @@ class LecturaActivity : AppCompatActivity() {
         navTitulo.text = "${Biblia.cargar(this)[navLibro].nombre} — Capítulos"
         val total = Biblia.cargar(this)[navLibro].capitulos.size
         val numeros = Array(total) { "Capítulo ${it + 1}" }.toList()
-        navCapitulos.adapter = ArrayAdapter(this, R.layout.item_lista, R.id.texto_item, numeros)
+        navCapitulos.adapter = ArrayAdapter(this, R.layout.item_capsula, R.id.texto_capsula, numeros)
         cambiarVista(navCapitulos, navLibros, desdeIzquierda = true)
         cerrarVersiculos()
     }
@@ -168,7 +169,7 @@ class LecturaActivity : AppCompatActivity() {
         navTitulo.text = "${libro.nombre} ${navCap + 1} — Versículos"
         val versiculos = libro.capitulos[navCap]
         val nombres = versiculos.map { (num, texto) -> "$num. $texto" }
-        navVersiculos.adapter = ArrayAdapter(this, R.layout.item_lista, R.id.texto_item, nombres)
+        navVersiculos.adapter = ArrayAdapter(this, R.layout.item_capsula, R.id.texto_capsula, nombres)
         cambiarVista(navVersiculos, navCapitulos, desdeIzquierda = true)
     }
 

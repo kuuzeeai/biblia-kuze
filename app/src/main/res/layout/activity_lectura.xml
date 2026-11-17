@@ -187,22 +187,28 @@
                 android:divider="@null"
                 android:dividerHeight="2dp" />
 
-            <ListView
+            <GridView
                 android:id="@+id/nav_capitulos"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:numColumns="2"
                 android:padding="8dp"
-                android:divider="@null"
-                android:dividerHeight="2dp"
+                android:horizontalSpacing="8dp"
+                android:verticalSpacing="8dp"
+                android:stretchMode="columnWidth"
+                android:gravity="center"
                 android:visibility="gone" />
 
-            <ListView
+            <GridView
                 android:id="@+id/nav_versiculos"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:numColumns="2"
                 android:padding="8dp"
-                android:divider="@null"
-                android:dividerHeight="2dp"
+                android:horizontalSpacing="8dp"
+                android:verticalSpacing="8dp"
+                android:stretchMode="columnWidth"
+                android:gravity="center"
                 android:visibility="gone" />
 
         </FrameLayout>
