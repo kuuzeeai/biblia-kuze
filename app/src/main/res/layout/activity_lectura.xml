@@ -18,8 +18,8 @@
             android:lineSpacingExtra="8dp"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
-            android:paddingTop="80dp"
-            android:paddingBottom="150dp"
+            android:paddingTop="90dp"
+            android:paddingBottom="180dp"
             android:textColor="@color/texto"
             android:textSize="18sp" />
 
@@ -64,27 +64,46 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:paddingBottom="24dp">
 
-        <!-- Flecha izquierda: abre Libros / Capítulo / Versículo -->
-        <ImageView
-            android:id="@+id/fab_izquierda"
-            android:layout_width="58dp"
-            android:layout_height="58dp"
-            android:layout_gravity="start|center_vertical"
-            android:background="@drawable/circulo_vidrio"
-            android:elevation="8dp"
-            android:padding="16dp"
-            android:src="@drawable/ic_flecha_izq"
-            android:contentDescription="Navegar" />
-
-        <!-- Grupo derecho: audio encima de la flecha derecha -->
+        <!-- Grupo izquierdo: navegar (lista) encima de la flecha ◀️ -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="end|center_vertical"
+            android:layout_gravity="start|bottom"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/fab_navegar"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/circulo_vidrio"
+                android:elevation="6dp"
+                android:padding="11dp"
+                android:src="@android:drawable/ic_menu_agenda"
+                android:contentDescription="Libros, capítulos y versículos" />
+
+            <ImageView
+                android:id="@+id/fab_izquierda"
+                android:layout_width="58dp"
+                android:layout_height="58dp"
+                android:background="@drawable/circulo_vidrio"
+                android:elevation="8dp"
+                android:padding="16dp"
+                android:src="@drawable/ic_flecha_izq"
+                android:contentDescription="Capítulo anterior" />
+
+        </LinearLayout>
+
+        <!-- Grupo derecho: audio encima de la flecha ▶️ -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|bottom"
             android:orientation="vertical"
             android:gravity="center">
 
@@ -95,7 +114,7 @@
                 android:layout_marginBottom="10dp"
                 android:background="@drawable/circulo_vidrio"
                 android:elevation="6dp"
-                android:padding="12dp"
+                android:padding="11dp"
                 android:src="@drawable/ic_audio"
                 android:contentDescription="Leer en voz alta" />
 
@@ -112,5 +131,82 @@
         </LinearLayout>
 
     </FrameLayout>
+
+    <!-- Navegador de pantalla completa: Libros -> Capítulos -> Versículos -->
+    <LinearLayout
+        android:id="@+id/navegador"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/fondo"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/superficie"
+            android:elevation="4dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <ImageView
+                android:id="@+id/nav_atras"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_flecha_izq"
+                android:tint="@color/primario"
+                android:contentDescription="Volver" />
+
+            <TextView
+                android:id="@+id/nav_titulo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/texto"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ListView
+                android:id="@+id/nav_libros"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:divider="@null"
+                android:dividerHeight="2dp" />
+
+            <ListView
+                android:id="@+id/nav_capitulos"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:divider="@null"
+                android:dividerHeight="2dp"
+                android:visibility="gone" />
+
+            <ListView
+                android:id="@+id/nav_versiculos"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:divider="@null"
+                android:dividerHeight="2dp"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </LinearLayout>
 
 </FrameLayout>

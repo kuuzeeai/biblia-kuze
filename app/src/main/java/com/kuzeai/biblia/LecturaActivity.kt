@@ -9,6 +9,8 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -28,6 +30,16 @@ class LecturaActivity : AppCompatActivity() {
     private var baseZoom = 18f
     private var zoomPendiente = false
 
+    // Navegador de pantalla completa
+    private lateinit var navegador: View
+    private lateinit var navTitulo: TextView
+    private lateinit var navLibros: ListView
+    private lateinit var navCapitulos: ListView
+    private lateinit var navVersiculos: ListView
+    private var navPaso = 0 // 0 = libros, 1 = capítulos, 2 = versículos
+    private var navLibro = 0
+    private var navCap = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lectura)
@@ -40,6 +52,12 @@ class LecturaActivity : AppCompatActivity() {
         textoView = findViewById(R.id.texto_biblia)
         tituloView = findViewById(R.id.titulo_lectura)
         scroll = findViewById(R.id.scroll_lectura)
+
+        navegador = findViewById(R.id.navegador)
+        navTitulo = findViewById(R.id.nav_titulo)
+        navLibros = findViewById(R.id.nav_libros)
+        navCapitulos = findViewById(R.id.nav_capitulos)
+        navVersiculos = findViewById(R.id.nav_versiculos)
 
         // Deslizar a la izquierda o derecha para cambiar de capítulo
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
@@ -83,33 +101,132 @@ class LecturaActivity : AppCompatActivity() {
             detector.onTouchEvent(event) || zoom.isInProgress
         }
 
-        findViewById<View>(R.id.fab_izquierda).setOnClickListener { mostrarNavegacion() }
+        findViewById<View>(R.id.fab_izquierda).setOnClickListener { anterior() }
         findViewById<View>(R.id.fab_derecha).setOnClickListener { siguiente() }
+        findViewById<View>(R.id.fab_navegar).setOnClickListener { abrirNavegador() }
         // fab_audio: aún sin función (lector en voz alta pendiente)
 
         findViewById<View>(R.id.boton_menu).setOnClickListener { mostrarMenu() }
+
+        findViewById<View>(R.id.nav_atras).setOnClickListener { pasoAtras() }
+
+        // Listas del navegador
+        navLibros.setOnItemClickListener { _, _, pos, _ -> elegirLibro(pos) }
+        navCapitulos.setOnItemClickListener { _, _, pos, _ -> elegirCapitulo(pos) }
+        navVersiculos.setOnItemClickListener { _, _, pos, _ -> elegirVersiculo(pos) }
 
         aplicarTamano()
         mostrar()
     }
 
+    // ---------- Navegador a pantalla completa ----------
+
+    private fun abrirNavegador() {
+        navLibro = indiceLibro
+        navCap = capitulo
+        navPaso = 0
+        cargarLibros()
+        val ancho = resources.displayMetrics.widthPixels
+        navegador.translationX = ancho.toFloat()
+        navegador.visibility = View.VISIBLE
+        navegador.animate().translationX(0f).setDuration(280).start()
+    }
+
+    private fun cerrarNavegador() {
+        val ancho = resources.displayMetrics.widthPixels
+        navegador.animate().translationX(ancho.toFloat()).setDuration(240)
+            .withEndAction {
+                navegador.visibility = View.GONE
+                navegador.translationX = 0f
+            }
+            .start()
+    }
+
+    private fun cargarLibros() {
+        navPaso = 0
+        navTitulo.text = "Libros"
+        val libros = Biblia.cargar(this)
+        val nombres = libros.mapIndexed { i, l -> "${l.nombre}  (${l.capitulos.size})" }
+        navLibros.adapter = ArrayAdapter(this, R.layout.item_lista, R.id.texto_item, nombres)
+        cambiarVista(navLibros, null, desdeIzquierda = false)
+        cerrarCapitulos()
+    }
+
+    private fun cargarCapitulos() {
+        navPaso = 1
+        navTitulo.text = "${Biblia.cargar(this)[navLibro].nombre} — Capítulos"
+        val total = Biblia.cargar(this)[navLibro].capitulos.size
+        val numeros = Array(total) { "Capítulo ${it + 1}" }.toList()
+        navCapitulos.adapter = ArrayAdapter(this, R.layout.item_lista, R.id.texto_item, numeros)
+        cambiarVista(navCapitulos, navLibros, desdeIzquierda = true)
+        cerrarVersiculos()
+    }
+
+    private fun cargarVersiculos() {
+        navPaso = 2
+        val libro = Biblia.cargar(this)[navLibro]
+        navTitulo.text = "${libro.nombre} ${navCap + 1} — Versículos"
+        val versiculos = libro.capitulos[navCap]
+        val nombres = versiculos.map { (num, texto) -> "$num. $texto" }
+        navVersiculos.adapter = ArrayAdapter(this, R.layout.item_lista, R.id.texto_item, nombres)
+        cambiarVista(navVersiculos, navCapitulos, desdeIzquierda = true)
+    }
+
+    private fun cambiarVista(entrante: View, saliente: View?, desdeIzquierda: Boolean) {
+        saliente?.visibility = View.GONE
+        val ancho = resources.displayMetrics.widthPixels
+        entrante.translationX = if (desdeIzquierda) -ancho.toFloat() else ancho.toFloat()
+        entrante.visibility = View.VISIBLE
+        entrante.animate().translationX(0f).setDuration(280).start()
+    }
+
+    private fun cerrarCapitulos() {
+        navCapitulos.visibility = View.GONE
+        navCapitulos.translationX = 0f
+    }
+
+    private fun cerrarVersiculos() {
+        navVersiculos.visibility = View.GONE
+        navVersiculos.translationX = 0f
+    }
+
+    private fun elegirLibro(pos: Int) {
+        navLibro = pos
+        navCap = 0
+        cargarCapitulos()
+    }
+
+    private fun elegirCapitulo(pos: Int) {
+        navCap = pos
+        cargarVersiculos()
+    }
+
+    private fun elegirVersiculo(pos: Int) {
+        val numero = Biblia.cargar(this)[navLibro].capitulos[navCap][pos].first
+        cerrarNavegador()
+        irALibroCapituloVersiculo(navLibro, navCap, numero)
+    }
+
+    private fun pasoAtras() {
+        when (navPaso) {
+            0 -> cerrarNavegador()
+            1 -> cargarLibros()
+            2 -> cargarCapitulos()
+        }
+    }
+
+    private fun irALibroCapituloVersiculo(nLibro: Int, nCap: Int, nVersiculo: Int) {
+        indiceLibro = nLibro
+        capitulo = nCap
+        libro = Biblia.cargar(this)[nLibro]
+        mostrar(nVersiculo)
+    }
+
+    // ---------- Menú del lápiz (marcar) ----------
+
     private fun claveCapitulo() = "${libro.nombre}|${capitulo + 1}"
 
     private fun claveVersiculo(versiculo: Int) = "${libro.nombre}|${capitulo + 1}|$versiculo"
-
-    private fun mostrarNavegacion() {
-        AlertDialog.Builder(this)
-            .setTitle("Navegar")
-            .setItems(arrayOf("Libros", "Capítulo", "Versículo")) { _, which ->
-                when (which) {
-                    0 -> finish()
-                    1 -> mostrarCapitulos()
-                    2 -> mostrarVersiculos()
-                }
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
 
     private fun mostrarMenu() {
         val capMarcado = claveCapitulo() in Preferencias.marcadores(this)
@@ -130,7 +247,7 @@ class LecturaActivity : AppCompatActivity() {
                             Toast.LENGTH_SHORT
                         ).show()
                     }
-                    1 -> mostrarVersiculos()
+                    1 -> mostrarVersiculosParaMarcar()
                     2 -> mostrarMarcadores(Biblia.cargar(this))
                 }
             }
@@ -138,7 +255,7 @@ class LecturaActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun mostrarVersiculos() {
+    private fun mostrarVersiculosParaMarcar() {
         val versiculos = libro.capitulos[capitulo]
         val nombres = versiculos.map { (num, texto) ->
             val recorte = if (texto.length > 40) texto.take(40) + "…" else texto
@@ -158,22 +275,6 @@ class LecturaActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancelar", null)
             .show()
-    }
-
-    private fun mostrarCapitulos() {
-        val total = libro.capitulos.size
-        val numeros = Array(total) { (it + 1).toString() }
-        AlertDialog.Builder(this)
-            .setTitle("${libro.nombre} — ${getString(R.string.capitulos)}")
-            .setItems(numeros) { _, which -> irACapitulo(which) }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
-
-    private fun irACapitulo(destino: Int) {
-        if (destino < 0 || destino > libro.capitulos.lastIndex) return
-        capitulo = destino
-        mostrar()
     }
 
     private fun mostrarMarcadores(libros: List<Libro>) {
@@ -205,16 +306,21 @@ class LecturaActivity : AppCompatActivity() {
             .show()
     }
 
+    // ---------- Texto ----------
+
     private fun aplicarTamano() {
         textoView.textSize = Preferencias.tamanoLetra(this).toFloat()
     }
 
-    private fun mostrar() {
+    private fun mostrar(versiculoDestino: Int? = null) {
         tituloView.text = "${libro.nombre} ${capitulo + 1}"
         val marcados = Preferencias.marcadoresVersiculo(this)
+        val versiculos = libro.capitulos[capitulo]
         val sb = SpannableStringBuilder()
-        for ((num, texto) in libro.capitulos[capitulo]) {
+        val inicios = HashMap<Int, Int>()
+        for ((num, texto) in versiculos) {
             val inicio = sb.length
+            inicios[num] = inicio
             sb.append("$num. $texto\n\n")
             if (claveVersiculo(num) in marcados) {
                 sb.setSpan(
@@ -226,7 +332,17 @@ class LecturaActivity : AppCompatActivity() {
             }
         }
         textoView.text = sb
-        scroll.smoothScrollTo(0, 0)
+
+        if (versiculoDestino != null) {
+            val offset = inicios[versiculoDestino] ?: 0
+            textoView.post {
+                val layout = textoView.layout ?: return@post
+                val linea = layout.getLineForOffset(offset)
+                scroll.smoothScrollTo(0, layout.getLineTop(linea))
+            }
+        } else {
+            scroll.smoothScrollTo(0, 0)
+        }
     }
 
     private fun anterior() {
