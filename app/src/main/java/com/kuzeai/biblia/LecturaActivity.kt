@@ -47,6 +47,23 @@ class LecturaActivity : AppCompatActivity() {
     private var escuchando = false
     private var iniciosVersiculos: Map<Int, Int> = emptyMap()
     private var versiculoActual = 0
+    private var saltarScrollEn = -1 // índice de versículo cuyo desplazamiento automático se omite
+
+    // Toques múltiples sobre el texto: 2 = leer desde ahí, 3 = leer solo ese versículo
+    private val manejador = android.os.Handler(android.os.Looper.getMainLooper())
+    private var toques = 0
+    private var toqueX = 0f
+    private var toqueY = 0f
+    private var bajadaX = 0f
+    private var bajadaY = 0f
+    private var bajadaT = 0L
+    private var toqueValido = false
+    private val resolverToques = Runnable {
+        val n = toques
+        toques = 0
+        if (n == 2) leerDesdeToque(soloUno = false)
+        else if (n >= 3) leerDesdeToque(soloUno = true)
+    }
 
     companion object {
         private const val ANIM = 280L
@@ -75,6 +92,9 @@ class LecturaActivity : AppCompatActivity() {
 
         // Deslizar a la izquierda o derecha para cambiar de capítulo
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            // Necesario para que el TextView reciba también el resto del gesto (soltar el dedo, etc.)
+            override fun onDown(e: MotionEvent): Boolean = true
+
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
                 if (e1 == null) return false
                 val dx = e2.x - e1.x
@@ -112,6 +132,7 @@ class LecturaActivity : AppCompatActivity() {
 
         textoView.setOnTouchListener { _, event ->
             zoom.onTouchEvent(event)
+            detectarToques(event, zoom.isInProgress)
             detector.onTouchEvent(event) || zoom.isInProgress
         }
 
@@ -405,6 +426,69 @@ class LecturaActivity : AppCompatActivity() {
         return true
     }
 
+    // ---------- Toques sobre el texto ----------
+
+    private fun detectarToques(event: MotionEvent, pellizcando: Boolean) {
+        val holgura = android.view.ViewConfiguration.get(this).scaledTouchSlop
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                bajadaX = event.x; bajadaY = event.y
+                bajadaT = event.eventTime
+                toqueValido = true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> toqueValido = false
+            MotionEvent.ACTION_MOVE -> {
+                if (abs(event.x - bajadaX) > holgura || abs(event.y - bajadaY) > holgura) toqueValido = false
+            }
+            MotionEvent.ACTION_CANCEL -> toqueValido = false
+            MotionEvent.ACTION_UP -> {
+                val corto = event.eventTime - bajadaT < 300
+                if (toqueValido && corto && !pellizcando) {
+                    // Un toque en otro lugar empieza la cuenta de nuevo
+                    if (toques > 0 && (abs(event.x - toqueX) > holgura * 4 || abs(event.y - toqueY) > holgura * 4)) {
+                        toques = 0
+                    }
+                    toques++
+                    toqueX = event.x; toqueY = event.y
+                    manejador.removeCallbacks(resolverToques)
+                    if (toques >= 3) {
+                        resolverToques.run()
+                    } else {
+                        manejador.postDelayed(resolverToques, 300)
+                    }
+                } else {
+                    toques = 0
+                    manejador.removeCallbacks(resolverToques)
+                }
+                toqueValido = false
+            }
+        }
+    }
+
+    // Versículo que contiene la posición tocada
+    private fun indiceVersiculoTocado(): Int {
+        val offset = textoView.getOffsetForPosition(toqueX, toqueY)
+        var resultado = 0
+        libro.capitulos[capitulo].forEachIndexed { i, par ->
+            val inicio = iniciosVersiculos[par.first] ?: return@forEachIndexed
+            if (inicio <= offset) resultado = i
+        }
+        return resultado
+    }
+
+    private fun leerDesdeToque(soloUno: Boolean) {
+        if (navegador.visibility == View.VISIBLE) return
+        val indice = indiceVersiculoTocado()
+        val num = libro.capitulos[capitulo].getOrNull(indice)?.first ?: return
+        saltarScrollEn = indice
+        Toast.makeText(
+            this,
+            if (soloUno) "Leyendo solo el versículo $num" else "Leyendo desde el versículo $num",
+            Toast.LENGTH_SHORT
+        ).show()
+        iniciarLectura(indice, soloUno)
+    }
+
     // ---------- Reproducir texto en voz ----------
 
     private fun reproducirTexto() {
@@ -415,7 +499,7 @@ class LecturaActivity : AppCompatActivity() {
         }
     }
 
-    private fun iniciarLectura(desde: Int) {
+    private fun iniciarLectura(desde: Int, soloUno: Boolean = false) {
         val versiculos = libro.capitulos[capitulo].map { it.second }
         if (versiculos.isEmpty()) {
             Toast.makeText(this, "No hay texto para leer", Toast.LENGTH_SHORT).show()
@@ -427,10 +511,14 @@ class LecturaActivity : AppCompatActivity() {
             titulo = "${libro.nombre}, capítulo ${capitulo + 1}",
             versiculos = versiculos,
             desde = desde,
+            hasta = if (soloUno) desde else versiculos.lastIndex,
+            conTitulo = desde == 0 && !soloUno,
             alVersiculo = { idx -> irAlVersiculoLeido(idx) },
             alTerminar = {
                 // Al acabar el capítulo, continuar con el siguiente (modo "escuchar la Biblia")
-                if (escuchando) {
+                if (soloUno) {
+                    detenerLectura()
+                } else if (escuchando) {
                     if (siguiente(auto = true)) iniciarLectura(0) else detenerLectura()
                 }
             },
@@ -461,12 +549,13 @@ class LecturaActivity : AppCompatActivity() {
     private fun irAlVersiculoLeido(indice: Int) {
         val num = libro.capitulos[capitulo].getOrNull(indice)?.first ?: return
         versiculoActual = num
+        Preferencias.guardarUltimaLectura(this, indiceLibro, capitulo, num)
+        if (indice == saltarScrollEn) { saltarScrollEn = -1; return }
         val offset = iniciosVersiculos[num] ?: return
         textoView.post {
             val layout = textoView.layout ?: return@post
             scroll.smoothScrollTo(0, layout.getLineTop(layout.getLineForOffset(offset)))
         }
-        Preferencias.guardarUltimaLectura(this, indiceLibro, capitulo, num)
     }
 
     // ---------- Elegir voz ----------
@@ -528,6 +617,7 @@ class LecturaActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         escuchando = false
+        manejador.removeCallbacks(resolverToques)
         lector.limpiar()
     }
 }

@@ -111,7 +111,7 @@ class LectorVoz {
             tono *= if (hombre) 0.85f else 1.0f
         }
         t.setPitch(tono.coerceIn(0.5f, 2.0f))
-        t.setSpeechRate(perfil.velocidad)
+        t.setSpeechRate((perfil.velocidad * FACTOR_VELOCIDAD).coerceIn(0.5f, 2.0f))
     }
 
     /** El usuario eligió una voz concreta del dispositivo para el género del perfil actual. */
@@ -132,7 +132,7 @@ class LectorVoz {
     // ---------- Reproducción ----------
 
     /**
-     * Lee un título y luego los versículos desde el índice [desde].
+     * Lee un título y luego los versículos desde el índice [desde] hasta [hasta].
      * [alVersiculo] se llama (en el hilo principal) al empezar cada versículo.
      * [alTerminar] se llama al acabar el último. [alError] si el motor falla.
      */
@@ -140,6 +140,8 @@ class LectorVoz {
         titulo: String,
         versiculos: List<String>,
         desde: Int = 0,
+        hasta: Int = versiculos.lastIndex,
+        conTitulo: Boolean = true,
         alVersiculo: (Int) -> Unit,
         alTerminar: () -> Unit,
         alError: () -> Unit
@@ -152,7 +154,7 @@ class LectorVoz {
         this.alVersiculo = alVersiculo
         this.alTerminar = alTerminar
         this.alError = alError
-        ultimoVersiculo = versiculos.lastIndex
+        ultimoVersiculo = hasta
         reproduciendo = true
 
         var primero = true
@@ -161,8 +163,8 @@ class LectorVoz {
             primero = false
             t.speak(texto, modo, Bundle(), id)
         }
-        if (desde == 0) encolar(titulo, "g${gen}_titulo")
-        for (i in desde..versiculos.lastIndex) encolar(versiculos[i], "g${gen}_v$i")
+        if (desde == 0 && conTitulo) encolar(titulo, "g${gen}_titulo")
+        for (i in desde..hasta) encolar(versiculos[i], "g${gen}_v$i")
         if (primero) { reproduciendo = false; alTerminar() } // no había nada que leer
     }
 
@@ -233,6 +235,9 @@ class LectorVoz {
     )
 
     companion object {
+        // Reduce un 10 % la velocidad de todos los perfiles (1.0 = sin cambio)
+        private const val FACTOR_VELOCIDAD = 0.9f
+
         val PERFILES = listOf(
             Perfil("narrador", "Narrador", true, 1.0f, 0.90f),
             Perfil("profeta", "Profeta (grave y solemne)", true, 0.75f, 0.80f),
