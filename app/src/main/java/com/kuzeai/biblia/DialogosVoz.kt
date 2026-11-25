@@ -4,11 +4,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import kotlin.math.roundToInt
 
 /** Selector de voz con el mismo diseño del resto de la app (tarjetas crema y marrón). */
 object DialogosVoz {
@@ -43,6 +45,7 @@ object DialogosVoz {
             activity,
             titulo = "Voz de lectura",
             subtitulo = "Toca una voz para escucharla",
+            lectorVelocidad = lector,
             secciones = {
                 val actual = lector.perfilActual()
                 fun filasDe(hombre: Boolean) = LectorVoz.PERFILES.filter { it.hombre == hombre }.map { p ->
@@ -123,6 +126,7 @@ object DialogosVoz {
         activity: AppCompatActivity,
         titulo: String,
         subtitulo: String,
+        lectorVelocidad: LectorVoz? = null,
         secciones: () -> List<Seccion>
     ) {
         val vista = LayoutInflater.from(activity).inflate(R.layout.dialog_voces, null)
@@ -130,7 +134,33 @@ object DialogosVoz {
         vista.findViewById<TextView>(R.id.subtitulo_dialogo).text = subtitulo
         val lista = vista.findViewById<LinearLayout>(R.id.lista_dialogo)
         val scroll = vista.findViewById<ScrollView>(R.id.scroll_dialogo)
-        scroll.layoutParams.height = (activity.resources.displayMetrics.heightPixels * 0.5f).toInt()
+        val proporcion = if (lectorVelocidad != null) 0.42f else 0.5f
+        scroll.layoutParams.height = (activity.resources.displayMetrics.heightPixels * proporcion).toInt()
+
+        // Barra de velocidad: de 50 % a 120 % en pasos de 5 %
+        if (lectorVelocidad != null) {
+            vista.findViewById<View>(R.id.panel_velocidad).visibility = View.VISIBLE
+            val barra = vista.findViewById<SeekBar>(R.id.barra_velocidad)
+            val valor = vista.findViewById<TextView>(R.id.valor_velocidad)
+            fun etiqueta(p: Int) = "${((0.5f + p * 0.05f) * 100).roundToInt()} %"
+            barra.max = 14
+            barra.progress = ((Preferencias.velocidadLectura(activity) - 0.5f) / 0.05f)
+                .roundToInt().coerceIn(0, 14)
+            valor.text = etiqueta(barra.progress)
+            barra.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, p: Int, deUsuario: Boolean) {
+                    valor.text = etiqueta(p)
+                }
+
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+
+                override fun onStopTrackingTouch(sb: SeekBar?) {
+                    val p = sb?.progress ?: return
+                    lectorVelocidad.cambiarVelocidad(activity, 0.5f + p * 0.05f)
+                    lectorVelocidad.probar(FRASE) // para oír cómo quedó
+                }
+            })
+        }
 
         fun pintar() {
             lista.removeAllViews()

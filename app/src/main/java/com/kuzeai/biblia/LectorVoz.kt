@@ -1,6 +1,8 @@
 package com.kuzeai.biblia
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -10,23 +12,25 @@ import android.speech.tts.Voice
 import java.util.Locale
 
 /**
- * Lector de voz (offline) basado en el motor TextToSpeech de Android.
+ * Lector de voz basado en el motor TextToSpeech de Android.
  *
- * - Lee el capítulo versículo por versículo (el motor TTS tiene un límite de ~4000
- *   caracteres por llamada y capítulos como el Salmo 119 lo superan).
- * - Intenta usar una voz masculina en español. Android no expone el género de una voz,
- *   así que se usa una heurística y, si no acierta, el usuario puede elegir otra voz
- *   (ver [vocesEspanol] / [usarVoz]).
+ * Para sonar lo más natural posible:
+ * - Cada estilo (Narrador, Profeta, Moisés…) usa una voz distinta del dispositivo en lugar de
+ *   deformar una sola voz con el tono (cambiar mucho el tono es lo que suena "robótico").
+ * - Con internet se permiten las voces de red, que suelen ser de mayor calidad.
+ * - El texto se lee por frases, con pausas cortas entre ellas y entre versículos.
  */
 class LectorVoz {
 
     private var tts: TextToSpeech? = null
     private var listo = false
+    private var contexto: Context? = null
     private val main = Handler(Looper.getMainLooper())
 
     // Cada lectura nueva incrementa la "generación"; los eventos de lecturas viejas se ignoran.
     private var generacion = 0
     private var ultimoVersiculo = -1
+    private var ultimoFragmento = 0
     private var alVersiculo: ((Int) -> Unit)? = null
     private var alTerminar: (() -> Unit)? = null
     private var alError: (() -> Unit)? = null
@@ -36,6 +40,7 @@ class LectorVoz {
 
     fun inicializar(context: Context, alListo: ((Boolean) -> Unit)? = null) {
         val app = context.applicationContext
+        contexto = app
         tts = TextToSpeech(app) { status ->
             listo = status == TextToSpeech.SUCCESS
             if (listo) {
@@ -61,15 +66,34 @@ class LectorVoz {
         aplicar(context)
     }
 
-    /** Voces en español instaladas (primero las que funcionan sin internet). */
+    /** Cambia la velocidad general (1.0 = la del estilo) y la guarda. */
+    fun cambiarVelocidad(context: Context, valor: Float) {
+        Preferencias.guardarVelocidad(context, valor)
+        aplicar(context)
+    }
+
+    private fun hayInternet(): Boolean = try {
+        val cm = contexto?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val caps = cm?.getNetworkCapabilities(cm.activeNetwork)
+        if (caps == null) false
+        else caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Voces en español disponibles. Sin internet solo las instaladas en el celular;
+     * con internet también las de red, que suelen sonar mejor.
+     */
     fun vocesEspanol(): List<Voice> {
         val todas = try { tts?.voices?.toList() ?: emptyList() } catch (e: Exception) { emptyList() }
         val es = todas.filter { it.locale.language == "es" }
         val sinRed = es.filter { !it.isNetworkConnectionRequired }
-        return if (sinRed.isNotEmpty()) sinRed else es
+        return if (hayInternet() || sinRed.isEmpty()) es else sinRed
     }
 
-    /** Voces del dispositivo ordenadas para el género pedido (las que mejor encajan, primero). */
+    /** Voces ordenadas para el género pedido: mejor encaje y mayor calidad primero. */
     fun vocesPara(hombre: Boolean): List<Voice> =
         vocesEspanol().sortedByDescending { puntaje(it, hombre) }
 
@@ -86,6 +110,8 @@ class LectorVoz {
         if (pareceMasculina(v) == hombre) p += 10
         // La RVR1960 se usa en Latinoamérica: preferir acentos latinos
         if (v.locale.country in setOf("US", "MX", "CO", "AR", "419")) p += 3
+        // Calidad declarada por el motor (100 = muy baja ... 500 = muy alta)
+        p += v.quality / 100
         if (!v.isNetworkConnectionRequired) p += 1
         return p
     }
@@ -97,21 +123,26 @@ class LectorVoz {
         val voces = vocesPara(hombre)
         val guardada = Preferencias.vozDispositivo(context, hombre)
         val elegida = voces.firstOrNull { it.name == guardada }
-        var tono = perfil.tono
+        var tono = 1.0f + (perfil.tono - 1.0f) * EFECTO_TONO // tono suavizado: menos artificial
+
         if (elegida != null) {
             t.voice = elegida
         } else if (voces.isNotEmpty()) {
-            val mejor = voces.first()
-            t.voice = mejor
-            // Si la voz no parece del género pedido, ajustar el tono para acercarla
-            if (pareceMasculina(mejor) != hombre) tono *= if (hombre) 0.85f else 1.15f
+            // Cada estilo usa una voz distinta (entre las que encajan con el género), si hay varias
+            val candidatas = voces.filter { pareceMasculina(it) == hombre }.ifEmpty { voces }
+            val posicion = PERFILES.filter { it.hombre == hombre }.indexOfFirst { it.id == perfil.id }
+            val voz = candidatas[posicion.coerceAtLeast(0) % candidatas.size]
+            t.voice = voz
+            // Solo si la voz no parece del género pedido se acerca con el tono
+            if (pareceMasculina(voz) != hombre) tono *= if (hombre) 0.85f else 1.1f
         } else {
             val r = t.setLanguage(Locale("es", "MX"))
             if (r < TextToSpeech.LANG_AVAILABLE) t.setLanguage(Locale("es", "ES"))
-            tono *= if (hombre) 0.85f else 1.0f
+            if (hombre) tono *= 0.9f
         }
-        t.setPitch(tono.coerceIn(0.5f, 2.0f))
-        t.setSpeechRate((perfil.velocidad * FACTOR_VELOCIDAD).coerceIn(0.5f, 2.0f))
+        t.setPitch(tono.coerceIn(0.6f, 1.4f))
+        val velocidad = perfil.velocidad * Preferencias.velocidadLectura(context)
+        t.setSpeechRate(velocidad.coerceIn(0.4f, 2.0f))
     }
 
     /** El usuario eligió una voz concreta del dispositivo para el género del perfil actual. */
@@ -155,17 +186,54 @@ class LectorVoz {
         this.alTerminar = alTerminar
         this.alError = alError
         ultimoVersiculo = hasta
+        ultimoFragmento = 0
         reproduciendo = true
 
         var primero = true
-        fun encolar(texto: String, id: String) {
+        fun hablar(texto: String, id: String) {
             val modo = if (primero) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
             primero = false
             t.speak(texto, modo, Bundle(), id)
         }
-        if (desde == 0 && conTitulo) encolar(titulo, "g${gen}_titulo")
-        for (i in desde..hasta) encolar(versiculos[i], "g${gen}_v$i")
+        fun pausa(ms: Long) {
+            if (!primero) t.playSilentUtterance(ms, TextToSpeech.QUEUE_ADD, "g${gen}_p")
+        }
+
+        if (desde == 0 && conTitulo) {
+            hablar(titulo, "g${gen}_titulo")
+            pausa(600L)
+        }
+        for (i in desde..hasta) {
+            val fragmentos = fragmentar(versiculos[i])
+            fragmentos.forEachIndexed { j, f ->
+                hablar(f.texto, "g${gen}_v${i}_f$j")
+                if (i == hasta && j == fragmentos.lastIndex) {
+                    ultimoFragmento = j // el final de todo: sin pausa después
+                } else {
+                    pausa(if (j == fragmentos.lastIndex) 500L else f.pausa)
+                }
+            }
+        }
         if (primero) { reproduciendo = false; alTerminar() } // no había nada que leer
+    }
+
+    private class Fragmento(val texto: String, val pausa: Long)
+
+    /** Divide un versículo en frases para darle ritmo natural (con pausas entre ellas). */
+    private fun fragmentar(texto: String): List<Fragmento> {
+        val limpio = texto.trim()
+        val resultado = mutableListOf<Fragmento>()
+        var acumulado = ""
+        for (parte in Regex("(?<=[.;:?!])\\s+").split(limpio)) {
+            acumulado = if (acumulado.isEmpty()) parte else "$acumulado $parte"
+            if (acumulado.length < 10) continue // muy corto: unir con lo siguiente
+            val pausa = if (acumulado.endsWith(";") || acumulado.endsWith(":")) 250L else 350L
+            resultado.add(Fragmento(acumulado, pausa))
+            acumulado = ""
+        }
+        if (acumulado.isNotEmpty()) resultado.add(Fragmento(acumulado, 350L))
+        if (resultado.isEmpty()) resultado.add(Fragmento(limpio, 350L))
+        return resultado
     }
 
     fun detener() {
@@ -185,17 +253,17 @@ class LectorVoz {
 
     private val escuchador = object : UtteranceProgressListener() {
         override fun onStart(utteranceId: String?) {
-            val (gen, idx) = analizar(utteranceId) ?: return
-            if (gen != generacion || idx < 0) return
-            main.post { if (gen == generacion) alVersiculo?.invoke(idx) }
+            val e = analizar(utteranceId) ?: return
+            if (e.gen != generacion || e.versiculo < 0 || e.fragmento != 0) return
+            main.post { if (e.gen == generacion) alVersiculo?.invoke(e.versiculo) }
         }
 
         override fun onDone(utteranceId: String?) {
-            val (gen, idx) = analizar(utteranceId) ?: return
-            if (gen != generacion) return
-            if (idx == ultimoVersiculo) {
+            val e = analizar(utteranceId) ?: return
+            if (e.gen != generacion) return
+            if (e.versiculo == ultimoVersiculo && e.fragmento == ultimoFragmento) {
                 main.post {
-                    if (gen == generacion) {
+                    if (e.gen == generacion) {
                         reproduciendo = false
                         alTerminar?.invoke()
                     }
@@ -205,10 +273,10 @@ class LectorVoz {
 
         @Deprecated("Deprecated in Java")
         override fun onError(utteranceId: String?) {
-            val (gen, _) = analizar(utteranceId) ?: return
-            if (gen != generacion) return
+            val e = analizar(utteranceId) ?: return
+            if (e.gen != generacion) return
             main.post {
-                if (gen == generacion) {
+                if (e.gen == generacion) {
                     reproduciendo = false
                     alError?.invoke()
                 }
@@ -216,13 +284,16 @@ class LectorVoz {
         }
     }
 
-    /** "g3_v12" -> (3, 12); "g3_titulo" -> (3, -1); otro -> null */
-    private fun analizar(id: String?): Pair<Int, Int>? {
+    private class Evento(val gen: Int, val versiculo: Int, val fragmento: Int)
+
+    /** "g3_v12_f2" -> (3, 12, 2); "g3_titulo" o "g3_p" -> (3, -1, -1); otro -> null */
+    private fun analizar(id: String?): Evento? {
         if (id == null || !id.startsWith("g")) return null
-        val partes = id.substring(1).split('_')
-        val gen = partes.getOrNull(0)?.toIntOrNull() ?: return null
-        val idx = partes.getOrNull(1)?.takeIf { it.startsWith("v") }?.drop(1)?.toIntOrNull() ?: -1
-        return gen to idx
+        val p = id.substring(1).split('_')
+        val gen = p.getOrNull(0)?.toIntOrNull() ?: return null
+        val v = p.getOrNull(1)?.takeIf { it.startsWith("v") }?.drop(1)?.toIntOrNull() ?: -1
+        val f = p.getOrNull(2)?.takeIf { it.startsWith("f") }?.drop(1)?.toIntOrNull() ?: -1
+        return Evento(gen, v, f)
     }
 
     /** Estilo de lectura: género + tono + velocidad. Son ajustes sobre la voz del dispositivo. */
@@ -235,19 +306,20 @@ class LectorVoz {
     )
 
     companion object {
-        // Reduce un 10 % la velocidad de todos los perfiles (1.0 = sin cambio)
-        private const val FACTOR_VELOCIDAD = 0.9f
+        // Cuánto del cambio de tono de cada estilo se aplica (1.0 = todo, 0 = nada).
+        // Cambiar mucho el tono hace que la voz suene artificial, por eso se reduce a la mitad.
+        private const val EFECTO_TONO = 0.5f
 
         val PERFILES = listOf(
-            Perfil("narrador", "Narrador", true, 1.0f, 0.90f),
-            Perfil("profeta", "Profeta", true, 0.75f, 0.80f),
-            Perfil("moises", "Moisés", true, 0.70f, 0.75f),
-            Perfil("david", "David", true, 0.90f, 0.90f),
-            Perfil("timoteo", "Timoteo", true, 1.10f, 1.00f),
-            Perfil("narradora", "Narradora", false, 1.0f, 0.90f),
-            Perfil("debora", "Débora", false, 0.90f, 0.95f),
-            Perfil("maria", "María", false, 1.10f, 0.85f),
-            Perfil("rut", "Rut", false, 1.05f, 0.85f)
+            Perfil("narrador", "Narrador", true, 1.0f, 0.95f),
+            Perfil("profeta", "Profeta", true, 0.80f, 0.88f),
+            Perfil("moises", "Moisés", true, 0.75f, 0.82f),
+            Perfil("david", "David", true, 0.92f, 0.95f),
+            Perfil("timoteo", "Timoteo", true, 1.08f, 1.00f),
+            Perfil("narradora", "Narradora", false, 1.0f, 0.95f),
+            Perfil("debora", "Débora", false, 0.92f, 0.98f),
+            Perfil("maria", "María", false, 1.08f, 0.90f),
+            Perfil("rut", "Rut", false, 1.04f, 0.90f)
         )
 
         // Códigos de voces de Google TTS que, según reportes de usuarios, son masculinas.

@@ -84,6 +84,13 @@ object Preferencias {
         prefs(context).edit().putString("dia_versiculo", dia).apply()
     }
 
+    // Velocidad general de la voz (1.0 = la propia de cada estilo)
+    fun velocidadLectura(context: Context): Float = prefs(context).getFloat("velocidad_lectura", 0.85f)
+
+    fun guardarVelocidad(context: Context, valor: Float) {
+        prefs(context).edit().putFloat("velocidad_lectura", valor).apply()
+    }
+
     fun vozDispositivo(context: Context, hombre: Boolean): String? =
         prefs(context).getString(if (hombre) "voz_hombre" else "voz_mujer", null)
 
