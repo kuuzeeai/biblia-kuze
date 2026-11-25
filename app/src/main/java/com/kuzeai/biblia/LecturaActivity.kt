@@ -10,6 +10,8 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.ViewTreeObserver
+import android.util.TypedValue
 import android.widget.ArrayAdapter
 import android.widget.GridView
 import android.widget.ListView
@@ -29,8 +31,6 @@ class LecturaActivity : AppCompatActivity() {
     private lateinit var textoView: TextView
     private lateinit var tituloView: TextView
     private lateinit var scroll: NestedScrollView
-    private var baseZoom = 18f
-    private var zoomPendiente = false
 
     // Navegador de pantalla completa
     private lateinit var navegador: View
@@ -48,6 +48,15 @@ class LecturaActivity : AppCompatActivity() {
     private var iniciosVersiculos: Map<Int, Int> = emptyMap()
     private var versiculoActual = 0
     private var saltarScrollEn = -1 // índice de versículo cuyo desplazamiento automático se omite
+
+    // Zoom con dos dedos (como ampliar una foto)
+    private lateinit var zoom: ScaleGestureDetector
+    private var tamanoSp = 18f
+    private var escalando = false
+    private var ultimoZoomT = 0L
+    private var focoOffset = 0        // letra del texto que está bajo los dedos
+    private var focoViewportY = 0f    // altura de los dedos dentro del área visible
+    private var anclajePendiente = false
 
     // Toques múltiples sobre el texto: 2 = leer desde ahí, 3 = leer solo ese versículo
     private val manejador = android.os.Handler(android.os.Looper.getMainLooper())
@@ -67,6 +76,8 @@ class LecturaActivity : AppCompatActivity() {
 
     companion object {
         private const val ANIM = 280L
+        private const val TAMANO_MIN = 12f
+        private const val TAMANO_MAX = 64f
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,6 +108,8 @@ class LecturaActivity : AppCompatActivity() {
 
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
                 if (e1 == null) return false
+                // Al soltar los dedos de un pellizco no se debe cambiar de capítulo
+                if (escalando || android.os.SystemClock.uptimeMillis() - ultimoZoomT < 500) return false
                 val dx = e2.x - e1.x
                 if (abs(dx) > 80 && abs(dx) > abs(vy) * 1.4f) {
                     if (dx < 0) siguiente() else anterior()
@@ -106,34 +119,39 @@ class LecturaActivity : AppCompatActivity() {
             }
         })
 
-        // Pellizcar con dos dedos para agrandar o achicar la letra
-        val zoom = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        // Pellizcar con dos dedos para agrandar o achicar la letra, como una foto:
+        // el texto bajo los dedos se queda bajo los dedos mientras se amplía.
+        zoom = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScaleBegin(d: ScaleGestureDetector): Boolean {
-                baseZoom = Preferencias.tamanoLetra(this@LecturaActivity).toFloat()
-                zoomPendiente = false
+                if (navegador.visibility == View.VISIBLE) return false
+                escalando = true
+                scroll.requestDisallowInterceptTouchEvent(true)
+                val pos = IntArray(2)
+                textoView.getLocationInWindow(pos)
+                focoOffset = textoView.getOffsetForPosition(d.focusX - pos[0], d.focusY - pos[1])
+                actualizarFoco(d)
                 return true
             }
 
             override fun onScale(d: ScaleGestureDetector): Boolean {
-                val nueva = (baseZoom * d.scaleFactor).coerceIn(14f, 34f)
-                textoView.textSize = nueva
-                zoomPendiente = true
+                // scaleFactor es el cambio desde el movimiento anterior: se va multiplicando
+                tamanoSp = (tamanoSp * d.scaleFactor).coerceIn(TAMANO_MIN, TAMANO_MAX)
+                textoView.setTextSize(TypedValue.COMPLEX_UNIT_SP, tamanoSp)
+                actualizarFoco(d)
+                pedirAnclaje()
                 return true
             }
 
-            override fun onScaleEnd(detector: ScaleGestureDetector) {
-                if (zoomPendiente) {
-                    val final = textoView.textSize.roundToInt().coerceIn(14, 34)
-                    Preferencias.guardarTamano(this@LecturaActivity, final)
-                    zoomPendiente = false
-                }
+            override fun onScaleEnd(d: ScaleGestureDetector) {
+                escalando = false
+                ultimoZoomT = android.os.SystemClock.uptimeMillis()
+                Preferencias.guardarTamano(this@LecturaActivity, tamanoSp.roundToInt())
             }
         })
 
         textoView.setOnTouchListener { _, event ->
-            zoom.onTouchEvent(event)
-            detectarToques(event, zoom.isInProgress)
-            detector.onTouchEvent(event) || zoom.isInProgress
+            detectarToques(event, escalando)
+            detector.onTouchEvent(event) || escalando
         }
 
         findViewById<View>(R.id.fab_izquierda).setOnClickListener { anterior() }
@@ -369,7 +387,41 @@ class LecturaActivity : AppCompatActivity() {
     // ---------- Texto ----------
 
     private fun aplicarTamano() {
-        textoView.textSize = Preferencias.tamanoLetra(this).toFloat()
+        tamanoSp = Preferencias.tamanoLetra(this).toFloat().coerceIn(TAMANO_MIN, TAMANO_MAX)
+        textoView.setTextSize(TypedValue.COMPLEX_UNIT_SP, tamanoSp)
+    }
+
+    // El zoom necesita ver todos los toques, incluso cuando el scroll los está usando
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (::zoom.isInitialized && ::navegador.isInitialized && navegador.visibility != View.VISIBLE) {
+            zoom.onTouchEvent(ev)
+            if (ev.pointerCount > 1) scroll.requestDisallowInterceptTouchEvent(true)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun actualizarFoco(d: ScaleGestureDetector) {
+        val pos = IntArray(2)
+        scroll.getLocationInWindow(pos)
+        focoViewportY = d.focusY - pos[1]
+    }
+
+    // Tras cambiar el tamaño, y antes de dibujar, se reajusta el scroll para que
+    // la misma parte del texto siga bajo los dedos
+    private fun pedirAnclaje() {
+        if (anclajePendiente) return
+        anclajePendiente = true
+        textoView.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                textoView.viewTreeObserver.removeOnPreDrawListener(this)
+                anclajePendiente = false
+                val layout = textoView.layout ?: return true
+                val offset = focoOffset.coerceIn(0, textoView.text.length)
+                val y = textoView.paddingTop + layout.getLineTop(layout.getLineForOffset(offset))
+                scroll.scrollTo(0, (y - focoViewportY).toInt().coerceAtLeast(0))
+                return true
+            }
+        })
     }
 
     private fun mostrar(versiculoDestino: Int? = null) {
