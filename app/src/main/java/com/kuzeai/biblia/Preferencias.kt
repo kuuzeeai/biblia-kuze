@@ -10,6 +10,7 @@ object Preferencias {
     private const val ULTIMO_LIBRO = "ultimo_libro"
     private const val ULTIMO_CAP = "ultimo_cap"
     private const val ULTIMO_VERS = "ultimo_vers"
+    private const val VOZ = "voz_lectura"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(NOMBRE, Context.MODE_PRIVATE)
@@ -68,5 +69,19 @@ object Preferencias {
             p.getInt(ULTIMO_CAP, 0),
             p.getInt(ULTIMO_VERS, 0)
         )
+    }
+
+    // Perfil de voz (estilo) y voz concreta del dispositivo elegida para cada género
+    fun perfilVoz(context: Context): String? = prefs(context).getString("perfil_voz", null)
+
+    fun guardarPerfilVoz(context: Context, id: String) {
+        prefs(context).edit().putString("perfil_voz", id).apply()
+    }
+
+    fun vozDispositivo(context: Context, hombre: Boolean): String? =
+        prefs(context).getString(if (hombre) "voz_hombre" else "voz_mujer", null)
+
+    fun guardarVozDispositivo(context: Context, hombre: Boolean, nombre: String) {
+        prefs(context).edit().putString(if (hombre) "voz_hombre" else "voz_mujer", nombre).apply()
     }
 }

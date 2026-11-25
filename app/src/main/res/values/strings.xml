@@ -18,4 +18,5 @@
     <string name="guardar_marcador">Guardar marcador</string>
     <string name="quitado_marcador">Marcador quitado</string>
     <string name="guardado_marcador">Marcador guardado</string>
+    <string name="voz_lectura">Voz de lectura…</string>
 </resources>

@@ -43,7 +43,10 @@ class LecturaActivity : AppCompatActivity() {
     private var navCap = 0
 
     // Lector de voz
-    private lateinit var lector: LectorVoz
+    private val lector = LectorVoz()
+    private var escuchando = false
+    private var iniciosVersiculos: Map<Int, Int> = emptyMap()
+    private var versiculoActual = 0
 
     companion object {
         private const val ANIM = 280L
@@ -52,24 +55,13 @@ class LecturaActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Si ya había una lectura guardada, abrir directamente en ese libro/capítulo/versículo
-        if (savedInstanceState == null) {
-            val ultima = Preferencias.ultimaLectura(this)
-            if (ultima != null) {
-                startActivity(Intent(this, LecturaActivity::class.java).apply {
-                    putExtra("libro", ultima.first)
-                    putExtra("capitulo", ultima.second)
-                    putExtra("versiculo", ultima.third)
-                })
-                finish()
-                return
-            }
-        }
-
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_lectura)
 
         val libros = Biblia.cargar(this)
-        indiceLibro = intent.getIntExtra("libro", _boticios = libros[indiceLibro]
+        indiceLibro = intent.getIntExtra("libro", 0).coerceIn(0, libros.lastIndex)
+        libro = libros[indiceLibro]
+        capitulo = intent.getIntExtra("capitulo", 0).coerceIn(0, libro.capitulos.lastIndex)
+        val versiculoInicial = intent.getIntExtra("versiculo", 0)
 
         textoView = findViewById(R.id.texto_biblia)
         tituloView = findViewById(R.id.titulo_lectura)
@@ -127,6 +119,7 @@ class LecturaActivity : AppCompatActivity() {
         findViewById<View>(R.id.fab_derecha).setOnClickListener { siguiente() }
         findViewById<View>(R.id.fab_navegar).setOnClickListener { abrirNavegador() }
         findViewById<View>(R.id.fab_audio).setOnClickListener { reproducirTexto() }
+        findViewById<View>(R.id.fab_audio).setOnLongClickListener { elegirVoz(); true }
 
         findViewById<View>(R.id.boton_menu).setOnClickListener { mostrarMenu() }
 
@@ -137,7 +130,6 @@ class LecturaActivity : AppCompatActivity() {
         navVersiculos.setOnItemClickListener { _, _, pos, _ -> elegirVersiculo(pos) }
 
         // Configurar lector de voz
-        lector = LectorVoz()
         lector.inicializar(this)
 
         aplicarTamano()
@@ -244,6 +236,7 @@ class LecturaActivity : AppCompatActivity() {
     }
 
     private fun irALibroCapituloVersiculo(nLibro: Int, nCap: Int, nVersiculo: Int) {
+        detenerLectura()
         indiceLibro = nLibro
         capitulo = nCap
         libro = Biblia.cargar(this)[nLibro]
@@ -261,7 +254,8 @@ class LecturaActivity : AppCompatActivity() {
         val opciones = mutableListOf(
             if (capMarcado) getString(R.string.quitar_marcador_capitulo) else getString(R.string.marcar_capitulo),
             getString(R.string.marcar_versiculo),
-            getString(R.string.marcadores)
+            getString(R.string.marcadores),
+            getString(R.string.voz_lectura)
         )
         AlertDialog.Builder(this)
             .setTitle(tituloView.text)
@@ -277,6 +271,7 @@ class LecturaActivity : AppCompatActivity() {
                     }
                     1 -> mostrarVersiculosParaMarcar()
                     2 -> mostrarMarcadores(Biblia.cargar(this))
+                    3 -> elegirVoz()
                 }
             }
             .setNegativeButton("Cancelar", null)
@@ -350,6 +345,7 @@ class LecturaActivity : AppCompatActivity() {
         val versiculos = libro.capitulos[capitulo]
         val sb = SpannableStringBuilder()
         val inicios = HashMap<Int, Int>()
+        iniciosVersiculos = inicios
         for ((num, texto) in versiculos) {
             val inicio = sb.length
             inicios[num] = inicio
@@ -378,6 +374,7 @@ class LecturaActivity : AppCompatActivity() {
     }
 
     private fun anterior() {
+        detenerLectura()
         if (capitulo > 0) {
             capitulo--
         } else if (indiceLibro > 0) {
@@ -391,7 +388,8 @@ class LecturaActivity : AppCompatActivity() {
         mostrar()
     }
 
-    private fun siguiente() {
+    private fun siguiente(auto: Boolean = false): Boolean {
+        if (!auto) detenerLectura()
         val libros = Biblia.cargar(this)
         if (capitulo < libro.capitulos.lastIndex) {
             capitulo++
@@ -401,28 +399,135 @@ class LecturaActivity : AppCompatActivity() {
             capitulo = 0
         } else {
             Toast.makeText(this, "Estás al final", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         mostrar()
+        return true
     }
 
     // ---------- Reproducir texto en voz ----------
 
     private fun reproducirTexto() {
-        val texto = textoView.text.toString()
-        if (texto.isEmpty()) {
+        if (escuchando) {
+            detenerLectura()
+        } else {
+            iniciarLectura(0)
+        }
+    }
+
+    private fun iniciarLectura(desde: Int) {
+        val versiculos = libro.capitulos[capitulo].map { it.second }
+        if (versiculos.isEmpty()) {
             Toast.makeText(this, "No hay texto para leer", Toast.LENGTH_SHORT).show()
             return
         }
-        if (lector.estaReproduciendo()) {
-            lector.pausar()
-        } else {
-            lector.hablar(texto)
+        escuchando = true
+        actualizarIconoAudio()
+        lector.leer(
+            titulo = "${libro.nombre}, capítulo ${capitulo + 1}",
+            versiculos = versiculos,
+            desde = desde,
+            alVersiculo = { idx -> irAlVersiculoLeido(idx) },
+            alTerminar = {
+                // Al acabar el capítulo, continuar con el siguiente (modo "escuchar la Biblia")
+                if (escuchando) {
+                    if (siguiente(auto = true)) iniciarLectura(0) else detenerLectura()
+                }
+            },
+            alError = {
+                detenerLectura()
+                Toast.makeText(
+                    this,
+                    "No se pudo reproducir la voz. Revisa que haya un motor de voz en español instalado.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        )
+    }
+
+    private fun detenerLectura() {
+        if (!escuchando && !lector.estaReproduciendo()) return
+        escuchando = false
+        lector.detener()
+        actualizarIconoAudio()
+    }
+
+    private fun actualizarIconoAudio() {
+        (findViewById<View>(R.id.fab_audio) as android.widget.ImageView)
+            .setImageResource(if (escuchando) R.drawable.ic_pausa else R.drawable.ic_audio)
+    }
+
+    // Lleva la pantalla al versículo que se está leyendo
+    private fun irAlVersiculoLeido(indice: Int) {
+        val num = libro.capitulos[capitulo].getOrNull(indice)?.first ?: return
+        versiculoActual = num
+        val offset = iniciosVersiculos[num] ?: return
+        textoView.post {
+            val layout = textoView.layout ?: return@post
+            scroll.smoothScrollTo(0, layout.getLineTop(layout.getLineForOffset(offset)))
         }
+        Preferencias.guardarUltimaLectura(this, indiceLibro, capitulo, num)
+    }
+
+    // ---------- Elegir voz ----------
+
+    private val fraseDePrueba = "En el principio creó Dios los cielos y la tierra."
+
+    // Paso 1: elegir el estilo (hombre / mujer / personaje)
+    private fun elegirVoz() {
+        detenerLectura()
+        val perfiles = LectorVoz.PERFILES
+        val actual = lector.perfilActual()
+        val nombres = perfiles.map {
+            val icono = if (it.hombre) "♂" else "♀"
+            val sel = if (it.id == actual.id) "  ✓" else ""
+            "$icono  ${it.nombre}$sel"
+        } + "⚙  Elegir otra voz del dispositivo…"
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.voz_lectura))
+            .setItems(nombres.toTypedArray()) { _, which ->
+                if (which < perfiles.size) {
+                    lector.usarPerfil(this, perfiles[which])
+                    lector.probar(fraseDePrueba)
+                } else {
+                    elegirVozDelDispositivo()
+                }
+            }
+            .setNegativeButton("Cerrar", null)
+            .show()
+    }
+
+    // Paso 2 (opcional): elegir una voz concreta instalada en el celular
+    private fun elegirVozDelDispositivo() {
+        val hombre = lector.perfilActual().hombre
+        val voces = lector.vocesPara(hombre)
+        if (voces.isEmpty()) {
+            Toast.makeText(
+                this,
+                "No hay voces en español instaladas. Instálalas en Ajustes > Salida de texto a voz.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        val actual = Preferencias.vozDispositivo(this, hombre)
+        val nombres = voces.mapIndexed { i, v ->
+            val marca = if (lector.pareceMasculina(v)) "♂ " else ""
+            val sel = if (v.name == actual) " ✓" else ""
+            "${marca}Voz ${i + 1} (${v.locale.displayCountry.ifEmpty { v.locale.country }})$sel"
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(if (hombre) "Voces para hombre" else "Voces para mujer")
+            .setItems(nombres) { _, which ->
+                lector.usarVoz(this, voces[which])
+                lector.probar(fraseDePrueba)
+            }
+            .setNegativeButton("Cerrar", null)
+            .show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        lector.limpiar(this)
+        escuchando = false
+        lector.limpiar()
     }
 }
