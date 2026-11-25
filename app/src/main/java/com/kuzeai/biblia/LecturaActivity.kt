@@ -155,6 +155,9 @@ class LecturaActivity : AppCompatActivity() {
 
         aplicarTamano()
         mostrar(versiculoInicial)
+
+        // Primera vez del día: letrero con un versículo al azar, leído con la última voz elegida
+        VersiculoDelDia.mostrarSiCorresponde(this)
     }
 
     // El gesto/botón de atrás del sistema devuelve una pestaña en el navegador
@@ -560,58 +563,9 @@ class LecturaActivity : AppCompatActivity() {
 
     // ---------- Elegir voz ----------
 
-    private val fraseDePrueba = "En el principio creó Dios los cielos y la tierra."
-
-    // Paso 1: elegir el estilo (hombre / mujer / personaje)
     private fun elegirVoz() {
         detenerLectura()
-        val perfiles = LectorVoz.PERFILES
-        val actual = lector.perfilActual()
-        val nombres = perfiles.map {
-            val icono = if (it.hombre) "♂" else "♀"
-            val sel = if (it.id == actual.id) "  ✓" else ""
-            "$icono  ${it.nombre}$sel"
-        } + "⚙  Elegir otra voz del dispositivo…"
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.voz_lectura))
-            .setItems(nombres.toTypedArray()) { _, which ->
-                if (which < perfiles.size) {
-                    lector.usarPerfil(this, perfiles[which])
-                    lector.probar(fraseDePrueba)
-                } else {
-                    elegirVozDelDispositivo()
-                }
-            }
-            .setNegativeButton("Cerrar", null)
-            .show()
-    }
-
-    // Paso 2 (opcional): elegir una voz concreta instalada en el celular
-    private fun elegirVozDelDispositivo() {
-        val hombre = lector.perfilActual().hombre
-        val voces = lector.vocesPara(hombre)
-        if (voces.isEmpty()) {
-            Toast.makeText(
-                this,
-                "No hay voces en español instaladas. Instálalas en Ajustes > Salida de texto a voz.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-        val actual = Preferencias.vozDispositivo(this, hombre)
-        val nombres = voces.mapIndexed { i, v ->
-            val marca = if (lector.pareceMasculina(v)) "♂ " else ""
-            val sel = if (v.name == actual) " ✓" else ""
-            "${marca}Voz ${i + 1} (${v.locale.displayCountry.ifEmpty { v.locale.country }})$sel"
-        }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(if (hombre) "Voces para hombre" else "Voces para mujer")
-            .setItems(nombres) { _, which ->
-                lector.usarVoz(this, voces[which])
-                lector.probar(fraseDePrueba)
-            }
-            .setNegativeButton("Cerrar", null)
-            .show()
+        DialogosVoz.selector(this, lector)
     }
 
     override fun onDestroy() {

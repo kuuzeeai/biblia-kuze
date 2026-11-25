@@ -78,6 +78,12 @@ object Preferencias {
         prefs(context).edit().putString("perfil_voz", id).apply()
     }
 
+    fun diaVersiculo(context: Context): String? = prefs(context).getString("dia_versiculo", null)
+
+    fun guardarDiaVersiculo(context: Context, dia: String) {
+        prefs(context).edit().putString("dia_versiculo", dia).apply()
+    }
+
     fun vozDispositivo(context: Context, hombre: Boolean): String? =
         prefs(context).getString(if (hombre) "voz_hombre" else "voz_mujer", null)
 

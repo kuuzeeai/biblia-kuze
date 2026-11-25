@@ -82,6 +82,9 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("Cerrar", null)
                 .show()
         }
+
+        // Primera vez del día: letrero con un versículo al azar, leído con la última voz elegida
+        VersiculoDelDia.mostrarSiCorresponde(this)
     }
 
     class LibroAdapter(

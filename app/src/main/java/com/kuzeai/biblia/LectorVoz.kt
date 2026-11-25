@@ -240,14 +240,14 @@ class LectorVoz {
 
         val PERFILES = listOf(
             Perfil("narrador", "Narrador", true, 1.0f, 0.90f),
-            Perfil("profeta", "Profeta (grave y solemne)", true, 0.75f, 0.80f),
-            Perfil("moises", "Estilo Moisés (anciano, pausado)", true, 0.70f, 0.75f),
-            Perfil("david", "Estilo David (cálido)", true, 0.90f, 0.90f),
-            Perfil("timoteo", "Estilo Timoteo (joven)", true, 1.10f, 1.00f),
+            Perfil("profeta", "Profeta", true, 0.75f, 0.80f),
+            Perfil("moises", "Moisés", true, 0.70f, 0.75f),
+            Perfil("david", "David", true, 0.90f, 0.90f),
+            Perfil("timoteo", "Timoteo", true, 1.10f, 1.00f),
             Perfil("narradora", "Narradora", false, 1.0f, 0.90f),
-            Perfil("debora", "Estilo Débora (firme)", false, 0.90f, 0.95f),
-            Perfil("maria", "Estilo María (suave)", false, 1.10f, 0.85f),
-            Perfil("rut", "Estilo Rut (tierna)", false, 1.05f, 0.85f)
+            Perfil("debora", "Débora", false, 0.90f, 0.95f),
+            Perfil("maria", "María", false, 1.10f, 0.85f),
+            Perfil("rut", "Rut", false, 1.05f, 0.85f)
         )
 
         // Códigos de voces de Google TTS que, según reportes de usuarios, son masculinas.
