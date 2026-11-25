@@ -138,7 +138,7 @@ class LecturaActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.fab_izquierda).setOnClickListener { anterior() }
         findViewById<View>(R.id.fab_derecha).setOnClickListener { siguiente() }
-        findViewById<View>(R.id.fab_navegar).setOnClickListener { abrirNavegador() }
+        findViewById<View>(R.id.fab_navegar).setOnClickListener { elegirDestino() }
         findViewById<View>(R.id.fab_audio).setOnClickListener { reproducirTexto() }
         findViewById<View>(R.id.fab_audio).setOnLongClickListener { elegirVoz(); true }
 
@@ -171,11 +171,24 @@ class LecturaActivity : AppCompatActivity() {
 
     // ---------- Navegador a pantalla completa ----------
 
-    private fun abrirNavegador() {
-        when (navPaso) {
+    // Recuadro con tres caminos: Libros, Capítulos o Versículos (del libro/capítulo que se está leyendo)
+    private fun elegirDestino() {
+        DialogosVoz.menuIrA(
+            this,
+            detalleLibros = "Los 66 libros de la Biblia",
+            detalleCapitulos = "De ${libro.nombre}",
+            detalleVersiculos = "De ${libro.nombre} ${capitulo + 1}"
+        ) { paso -> abrirNavegador(paso) }
+    }
+
+    // paso: 0 = libros, 1 = capítulos, 2 = versículos. Desde ahí se sigue como siempre.
+    private fun abrirNavegador(paso: Int) {
+        navLibro = indiceLibro
+        navCap = capitulo
+        when (paso) {
             0 -> cargarLibros()
             1 -> cargarCapitulos()
-            2 -> cargarVersiculos()
+            else -> cargarVersiculos()
         }
         val ancho = resources.displayMetrics.widthPixels
         navegador.translationX = ancho.toFloat()

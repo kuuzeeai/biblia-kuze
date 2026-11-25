@@ -120,6 +120,46 @@ object DialogosVoz {
         )
     }
 
+    /**
+     * Recuadro "Ir a…" con tres caminos. [alElegir] recibe 0 (libros), 1 (capítulos) o 2 (versículos).
+     */
+    fun menuIrA(
+        activity: AppCompatActivity,
+        detalleLibros: String,
+        detalleCapitulos: String,
+        detalleVersiculos: String,
+        alElegir: (Int) -> Unit
+    ) {
+        val vista = LayoutInflater.from(activity).inflate(R.layout.dialog_voces, null)
+        vista.findViewById<TextView>(R.id.titulo_dialogo).text = "Ir a…"
+        vista.findViewById<TextView>(R.id.subtitulo_dialogo).text = "Elige por dónde quieres empezar"
+        vista.findViewById<TextView>(R.id.boton_cerrar_dialogo).text = "Cancelar"
+        val lista = vista.findViewById<LinearLayout>(R.id.lista_dialogo)
+        var dialogo: AlertDialog? = null
+
+        val opciones = listOf(
+            Triple("📖", "Libros", detalleLibros),
+            Triple("📑", "Capítulos", detalleCapitulos),
+            Triple("❝", "Versículos", detalleVersiculos)
+        )
+        opciones.forEachIndexed { indice, (icono, titulo, detalle) ->
+            val fila = Fila(icono, titulo, detalle, activa = { false }, alTocar = { alElegir(indice) })
+            lista.addView(vistaFila(activity, lista, fila) { dialogo?.dismiss() })
+        }
+
+        val d = AlertDialog.Builder(activity).setView(vista).create()
+        dialogo = d
+        vista.findViewById<View>(R.id.boton_cerrar_dialogo).setOnClickListener { d.dismiss() }
+        d.show()
+        d.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            setLayout(
+                (activity.resources.displayMetrics.widthPixels * 0.94f).toInt(),
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+    }
+
     // ---------- Construcción del diálogo ----------
 
     private fun mostrar(
