@@ -37,6 +37,24 @@ object Preferencias {
         return agregado
     }
 
+    fun quitarMarcador(context: Context, clave: String) {
+        val actuales = marcadores(context).toMutableSet()
+        actuales.remove(clave)
+        prefs(context).edit().putStringSet(MARCADORES, actuales).apply()
+    }
+
+    fun quitarMarcadorVersiculo(context: Context, clave: String) {
+        val actuales = marcadoresVersiculo(context).toMutableSet()
+        actuales.remove(clave)
+        prefs(context).edit().putStringSet(MARCADORES_V, actuales).apply()
+    }
+
+    fun ayudaVista(context: Context): Boolean = prefs(context).getBoolean("ayuda_vista", false)
+
+    fun marcarAyudaVista(context: Context) {
+        prefs(context).edit().putBoolean("ayuda_vista", true).apply()
+    }
+
     fun marcadoresVersiculo(context: Context): Set<String> =
         prefs(context).getStringSet(MARCADORES_V, emptySet()) ?: emptySet()
 

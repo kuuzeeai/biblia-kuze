@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fondo">#FF121212</color>
+    <color name="superficie">#FF1E1C19</color>
+    <color name="primario">#FFE0C097</color>
+    <color name="sobre_primario">#FF1E1A16</color>
+    <color name="texto">#FFECE7DF</color>
+    <color name="texto_sec">#FFB8AFA4</color>
+    <color name="borde">#FF3B3631</color>
+    <color name="fondo_marcado">#66B08A3E</color>
+    <color name="icono_fondo">#FF2A3340</color>
+    <color name="vidrio_ini">#E6E0C097</color>
+    <color name="vidrio_fin">#B3E0C097</color>
+    <color name="vidrio_borde">#FF121212</color>
+</resources>

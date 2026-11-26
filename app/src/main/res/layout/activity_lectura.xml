@@ -5,7 +5,7 @@
     android:background="@color/fondo"
     android:fitsSystemWindows="true">
 
-    <!-- Texto de la Biblia (ocupa toda la pantalla, el contenido se mueve bajo los botones) -->
+    <!-- Texto de la Biblia (ocupa toda la pantalla, el contenido se mueve bajo las barras) -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_lectura"
         android:layout_width="match_parent"
@@ -19,13 +19,13 @@
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
             android:paddingTop="90dp"
-            android:paddingBottom="180dp"
+            android:paddingBottom="220dp"
             android:textColor="@color/texto"
             android:textSize="18sp" />
 
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Barra superior flotante -->
+    <!-- Barra superior: título, tamaño de letra, estrella y menú -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -36,101 +36,295 @@
         android:layout_margin="12dp"
         android:elevation="6dp"
         android:paddingStart="16dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp">
+        android:paddingEnd="6dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
 
         <TextView
             android:id="@+id/titulo_lectura"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:textColor="@color/texto"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/boton_menos"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/capsula"
+            android:contentDescription="Letra más pequeña"
+            android:gravity="center"
+            android:text="A−"
+            android:textColor="@color/primario"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/boton_mas"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/capsula"
+            android:contentDescription="Letra más grande"
+            android:gravity="center"
+            android:text="A+"
+            android:textColor="@color/primario"
+            android:textSize="21sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/boton_estrella"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="2dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_estrella"
+            android:tint="@color/primario"
+            android:contentDescription="Guardar este capítulo" />
 
         <ImageView
             android:id="@+id/boton_menu"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:padding="8dp"
-            android:src="@android:drawable/ic_menu_edit"
-            android:contentDescription="@string/marcadores" />
+            android:src="@drawable/ic_menu"
+            android:tint="@color/primario"
+            android:contentDescription="Menú" />
 
     </LinearLayout>
 
-    <!-- Botones flotantes inferiores de vidrio -->
-    <FrameLayout
+    <!-- Barra inferior: botones grandes con texto y pestañas -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="24dp">
+        android:background="@drawable/hoja_inferior"
+        android:clickable="true"
+        android:elevation="12dp"
+        android:focusable="false"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="6dp">
 
-        <!-- Grupo izquierdo: navegar (lista) encima de la flecha ◀️ -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="start|bottom"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/fab_navegar"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
-                android:layout_marginBottom="18dp"
-                android:background="@drawable/circulo_vidrio"
-                android:elevation="6dp"
-                android:padding="11dp"
-                android:src="@android:drawable/ic_menu_agenda"
-                android:contentDescription="Libros, capítulos y versículos" />
-
-            <ImageView
+            <LinearLayout
                 android:id="@+id/fab_izquierda"
-                android:layout_width="58dp"
-                android:layout_height="58dp"
-                android:background="@drawable/circulo_vidrio"
-                android:elevation="8dp"
-                android:padding="16dp"
-                android:src="@drawable/ic_flecha_izq"
-                android:contentDescription="Capítulo anterior" />
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Capítulo anterior"
+                android:gravity="center"
+                android:minHeight="76dp"
+                android:orientation="vertical">
 
-        </LinearLayout>
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:background="@drawable/circulo_vidrio"
+                    android:importantForAccessibility="no"
+                    android:padding="13dp"
+                    android:src="@drawable/ic_flecha_izq"
+                    android:tint="@color/sobre_primario" />
 
-        <!-- Grupo derecho: audio encima de la flecha ▶️ -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end|bottom"
-            android:orientation="vertical"
-            android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Anterior"
+                    android:textColor="@color/primario"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
-            <ImageView
+            <LinearLayout
                 android:id="@+id/fab_audio"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
-                android:layout_marginBottom="18dp"
-                android:background="@drawable/circulo_vidrio"
-                android:elevation="6dp"
-                android:padding="11dp"
-                android:src="@drawable/ic_audio"
-                android:contentDescription="Leer en voz alta" />
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Leer en voz alta"
+                android:gravity="center"
+                android:minHeight="76dp"
+                android:orientation="vertical">
 
-            <ImageView
+                <ImageView
+                    android:id="@+id/icono_audio"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:background="@drawable/circulo_vidrio"
+                    android:importantForAccessibility="no"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_audio"
+                    android:tint="@color/sobre_primario" />
+
+                <TextView
+                    android:id="@+id/texto_audio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Escuchar"
+                    android:textColor="@color/primario"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/fab_derecha"
-                android:layout_width="58dp"
-                android:layout_height="58dp"
-                android:background="@drawable/circulo_vidrio"
-                android:elevation="8dp"
-                android:padding="16dp"
-                android:src="@drawable/ic_flecha_der"
-                android:contentDescription="Siguiente capítulo" />
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Siguiente capítulo"
+                android:gravity="center"
+                android:minHeight="76dp"
+                android:orientation="vertical">
 
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:background="@drawable/circulo_vidrio"
+                    android:importantForAccessibility="no"
+                    android:padding="13dp"
+                    android:src="@drawable/ic_flecha_der"
+                    android:tint="@color/sobre_primario" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Siguiente"
+                    android:textColor="@color/primario"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
-    </FrameLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp"
+            android:background="@color/borde" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/tab_leer"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:background="@drawable/capsula"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_libro"
+                    android:tint="@color/primario" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Leer"
+                    android:textColor="@color/primario"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/tab_ir"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_lista"
+                    android:tint="@color/primario" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ir a…"
+                    android:textColor="@color/primario"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/tab_buscar"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_lupa"
+                    android:tint="@color/primario" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Buscar"
+                    android:textColor="@color/primario"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/tab_marcadores"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_marcador"
+                    android:tint="@color/primario" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Marcadores"
+                    android:textColor="@color/primario"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
 
     <!-- Navegador de pantalla completa: Libros -> Capítulos -> Versículos -->
     <LinearLayout
