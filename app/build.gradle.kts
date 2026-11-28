@@ -15,6 +15,24 @@ android {
         versionName = "1.0"
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
+    flavorDimensions += "modo"
+    productFlavors {
+        create("normal") {
+            dimension = "modo"
+            buildConfigField("boolean", "MODO_VOZ", "false")
+        }
+        create("voz") {
+            dimension = "modo"
+            applicationIdSuffix = ".voz"
+            versionNameSuffix = "-voz"
+            buildConfigField("boolean", "MODO_VOZ", "true")
+        }
+    }
+
     signingConfigs {
         create("biblia") {
             storeFile = file("biblia.jks")

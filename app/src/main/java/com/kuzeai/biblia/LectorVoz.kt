@@ -35,6 +35,7 @@ class LectorVoz {
     private var alTerminar: (() -> Unit)? = null
     private var alError: (() -> Unit)? = null
     private var reproduciendo = false
+    private var alAviso: (() -> Unit)? = null
 
     private var perfil: Perfil = PERFILES.first()
 
@@ -236,8 +237,19 @@ class LectorVoz {
         return resultado
     }
 
+    /** Dice una frase suelta (un aviso) y llama a [alTerminarAviso] cuando termina de hablar. */
+    fun decir(texto: String, alTerminarAviso: () -> Unit) {
+        val t = tts
+        if (t == null || !listo) { main.post { alTerminarAviso() }; return }
+        generacion++
+        reproduciendo = false
+        alAviso = alTerminarAviso
+        t.speak(texto, TextToSpeech.QUEUE_FLUSH, Bundle(), "aviso")
+    }
+
     fun detener() {
         generacion++ // invalida eventos pendientes
+        alAviso = null
         reproduciendo = false
         tts?.stop()
     }
@@ -259,6 +271,10 @@ class LectorVoz {
         }
 
         override fun onDone(utteranceId: String?) {
+            if (utteranceId == "aviso") {
+                main.post { val cb = alAviso; alAviso = null; cb?.invoke() }
+                return
+            }
             val e = analizar(utteranceId) ?: return
             if (e.gen != generacion) return
             if (e.versiculo == ultimoVersiculo && e.fragmento == ultimoFragmento) {
@@ -273,6 +289,10 @@ class LectorVoz {
 
         @Deprecated("Deprecated in Java")
         override fun onError(utteranceId: String?) {
+            if (utteranceId == "aviso") {
+                main.post { val cb = alAviso; alAviso = null; cb?.invoke() }
+                return
+            }
             val e = analizar(utteranceId) ?: return
             if (e.gen != generacion) return
             main.post {

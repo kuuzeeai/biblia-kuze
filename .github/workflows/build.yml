@@ -48,9 +48,16 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload debug APK as artifact
+      - name: Upload normal APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: biblia-kuze-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: biblia-kuze-normal
+          path: app/build/outputs/apk/normal/debug/app-normal-debug.apk
+          if-no-files-found: error
+
+      - name: Upload voice APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: biblia-kuze-voz
+          path: app/build/outputs/apk/voz/debug/app-voz-debug.apk
           if-no-files-found: error

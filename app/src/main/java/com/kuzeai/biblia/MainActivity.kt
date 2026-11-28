@@ -22,6 +22,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Versión "voz" (para quien no lee): ir directo a la pantalla de la bola
+        if (BuildConfig.MODO_VOZ) {
+            startActivity(Intent(this, VozActivity::class.java))
+            finish()
+            return
+        }
+
         // Si ya había una lectura guardada, abrir directamente en ese libro/capítulo/versículo
         if (savedInstanceState == null) {
             val ultima = Preferencias.ultimaLectura(this)
