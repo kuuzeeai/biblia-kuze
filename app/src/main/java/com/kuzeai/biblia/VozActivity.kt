@@ -69,6 +69,7 @@ class VozActivity : AppCompatActivity() {
         texto = findViewById(R.id.texto)
 
         lector.inicializar(this)
+        prepararReconocedor() // se crea desde el inicio para que escuche más rápido
 
         bola.setOnClickListener { alTocarBola() }
         findViewById<View>(R.id.btn_atras).setOnClickListener { saltar(-10) }
@@ -122,18 +123,24 @@ class VozActivity : AppCompatActivity() {
         if (estado == Estado.LEYENDO) parar()
         estado = Estado.AVISO
         val ticket = ++ticketAviso
-        lector.decir("Te escucho. ¿Qué quieres escuchar?") {
+        lector.decir("Te escucho") {
             if (ticket == ticketAviso && estado == Estado.AVISO) empezarEscucha()
         }
         actualizarUI()
     }
 
+    private fun prepararReconocedor() {
+        if (reconocedor == null && SpeechRecognizer.isRecognitionAvailable(this)) {
+            reconocedor = SpeechRecognizer.createSpeechRecognizer(this).also {
+                it.setRecognitionListener(oyente)
+            }
+        }
+    }
+
     private fun empezarEscucha() {
         estado = Estado.ESCUCHANDO
-        val r = reconocedor ?: SpeechRecognizer.createSpeechRecognizer(this).also {
-            it.setRecognitionListener(oyente)
-            reconocedor = it
-        }
+        prepararReconocedor()
+        val r = reconocedor ?: return
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-MX")
