@@ -42,21 +42,10 @@ jobs:
         run: |
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Preparar llave de firma (solo si existe el secreto KEYSTORE_B64)
-        env:
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
-        run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/biblia.jks"
-            echo "KEYSTORE_PATH=$RUNNER_TEMP/biblia.jks" >> "$GITHUB_ENV"
-          fi
-
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Build debug APK
-        env:
-          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload debug APK as artifact

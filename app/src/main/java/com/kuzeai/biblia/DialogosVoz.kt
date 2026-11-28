@@ -254,7 +254,7 @@ object DialogosVoz {
         }
         if (activa) {
             v.setBackgroundResource(R.drawable.cajon_activo)
-            nombre.setTextColor(activity.getColor(R.color.sobre_primario))
+            nombre.setTextColor(activity.getColor(android.R.color.white))
             detalle.setTextColor(0xCCFFFFFF.toInt())
             v.findViewById<View>(R.id.marca_voz).visibility = View.VISIBLE
         }

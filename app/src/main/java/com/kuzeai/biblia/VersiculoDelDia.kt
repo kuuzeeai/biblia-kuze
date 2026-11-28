@@ -113,6 +113,7 @@ object VersiculoDelDia {
             }
             dialogo.dismiss()
             activity.startActivity(intent)
+            if (activity is LecturaActivity) activity.finish()
         }
 
         dialogo.show()
@@ -124,7 +125,6 @@ object VersiculoDelDia {
             )
         }
 
-        // Sin voz automática: solo suena si la persona toca "Escuchar"
-        lector.inicializar(activity)
+        lector.inicializar(activity) { ok -> if (ok && activo) hablar() }
     }
 }

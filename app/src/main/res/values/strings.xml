@@ -4,11 +4,11 @@
     <string name="titulo">Biblia</string>
     <string name="libros">Libros</string>
     <string name="capitulos">Capítulos</string>
-    <string name="buscar">Buscar una palabra o un libro</string>
+    <string name="buscar">Buscar en la Biblia…</string>
     <string name="ajustes">Ajustes</string>
     <string name="tamano_letra">Tamaño de letra</string>
     <string name="marcadores">Marcadores</string>
-    <string name="sin_marcadores">Aún no hay marcadores. Toca la estrella ⭐ para guardar un capítulo.</string>
+    <string name="sin_marcadores">Aún no hay marcadores.</string>
     <string name="anterior">Anterior</string>
     <string name="siguiente">Siguiente</string>
     <string name="marcar_capitulo">Marcar capítulo</string>
@@ -17,8 +17,6 @@
     <string name="seleccionar_versiculo">Toca un versículo para marcarlo</string>
     <string name="guardar_marcador">Guardar marcador</string>
     <string name="quitado_marcador">Marcador quitado</string>
-    <string name="guardado_marcador">⭐ Guardado en Marcadores</string>
+    <string name="guardado_marcador">Marcador guardado</string>
     <string name="voz_lectura">Voz de lectura…</string>
-    <string name="ayuda_titulo">Cómo usar la Biblia</string>
-    <string name="ayuda_texto">👆  Desliza el dedo a la izquierda o a la derecha para cambiar de capítulo.\n\n🔠  Toca A+ o A− arriba para cambiar el tamaño de la letra.\n\n🔊  Toca Escuchar para que la Biblia se lea en voz alta. Si mantienes presionado, puedes cambiar la voz.\n\n👆👆  Toca dos veces un versículo para escucharlo desde ahí. Tres veces, para escuchar solo ese versículo.\n\n⭐  Toca la estrella para guardar el capítulo. Lo encontrarás en Marcadores.\n\n📖  Abajo tienes: Leer, Ir a…, Buscar y Marcadores.</string>
 </resources>
