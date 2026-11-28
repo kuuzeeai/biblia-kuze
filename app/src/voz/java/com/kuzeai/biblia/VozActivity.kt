@@ -84,7 +84,10 @@ class VozActivity : AppCompatActivity() {
         icono = findViewById(R.id.icono)
         texto = findViewById(R.id.texto)
 
-        lector.inicializar(this)
+        lector.inicializar(this) { ok ->
+            // Si la voz no está lista, mostrar por qué (para quien ayuda a configurar)
+            if (!ok || lector.diagnostico().contains("sin internet: 0")) texto.text = lector.diagnostico()
+        }
         prepararReconocedor() // se crea desde el inicio para que escuche más rápido
         cargarVosk()
 
@@ -395,7 +398,10 @@ class VozActivity : AppCompatActivity() {
                 inicioVerso = SystemClock.elapsedRealtime()
             },
             alTerminar = { siguienteCapitulo() },
-            alError = { avisar("Hubo un problema con la voz del teléfono.") }
+            alError = {
+                texto.text = lector.diagnostico()
+                avisar("Hubo un problema con la voz del teléfono.")
+            }
         )
         actualizarUI()
     }

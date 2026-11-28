@@ -36,6 +36,8 @@ class LectorVoz {
     private var alError: (() -> Unit)? = null
     private var reproduciendo = false
     private var alAviso: (() -> Unit)? = null
+    var ultimoError = 0
+        private set
 
     private var perfil: Perfil = PERFILES.first()
 
@@ -249,6 +251,14 @@ class LectorVoz {
         t.speak(texto, TextToSpeech.QUEUE_FLUSH, Bundle(), "aviso")
     }
 
+    /** Resumen del estado de la voz, para saber por qué no habla. */
+    fun diagnostico(): String {
+        val todas = try { tts?.voices?.toList() ?: emptyList() } catch (e: Exception) { emptyList() }
+        val es = todas.filter { it.locale.language == "es" }
+        val sinRed = es.count { !it.isNetworkConnectionRequired }
+        return "Voz ${if (listo) "lista" else "NO disponible"} · español: ${es.size}, sin internet: $sinRed · error $ultimoError"
+    }
+
     fun detener() {
         generacion++ // invalida eventos pendientes
         alAviso = null
@@ -287,6 +297,11 @@ class LectorVoz {
                     }
                 }
             }
+        }
+
+        override fun onError(utteranceId: String?, errorCode: Int) {
+            ultimoError = errorCode
+            onError(utteranceId)
         }
 
         @Deprecated("Deprecated in Java")
