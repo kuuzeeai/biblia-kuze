@@ -3,10 +3,13 @@ package com.kuzeai.biblia
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.os.SystemClock
 import android.speech.RecognitionListener
@@ -19,6 +22,14 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import org.json.JSONArray
+import org.json.JSONObject
+import org.vosk.Model
+import org.vosk.Recognizer
+import org.vosk.android.SpeechService
+import org.vosk.android.RecognitionListener as VoskListener
+import java.io.File
+import java.io.IOException
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -39,7 +50,12 @@ class VozActivity : AppCompatActivity() {
     private var estado = Estado.REPOSO
     private var ticketAviso = 0
     private var hayContenido = false
-    private var sinConexion = true // primero se intenta el reconocimiento sin internet
+    // Reconocimiento sin internet (Vosk, va dentro de la app)
+    private var modelo: Model? = null
+    private var gramatica = "[]"
+    private var cargandoVosk = false
+    private var voskService: SpeechService? = null
+    private var usandoVosk = false
 
     private var libro = 0
     private var capitulo = 0
@@ -70,6 +86,7 @@ class VozActivity : AppCompatActivity() {
 
         lector.inicializar(this)
         prepararReconocedor() // se crea desde el inicio para que escuche más rápido
+        cargarVosk()
 
         bola.setOnClickListener { alTocarBola() }
         findViewById<View>(R.id.btn_atras).setOnClickListener { saltar(-10) }
@@ -82,6 +99,7 @@ class VozActivity : AppCompatActivity() {
         super.onDestroy()
         reconocedor?.destroy()
         reconocedor = null
+        detenerVosk()
         lector.limpiar()
     }
 
@@ -91,7 +109,7 @@ class VozActivity : AppCompatActivity() {
         when (estado) {
             Estado.REPOSO, Estado.PAUSADO -> pedirVoz()
             Estado.AVISO -> { ticketAviso++; lector.detener(); reposo() }
-            Estado.ESCUCHANDO -> { reconocedor?.cancel(); reposo() }
+            Estado.ESCUCHANDO -> { reconocedor?.cancel(); detenerVosk(); reposo() }
             Estado.LEYENDO -> parar()
         }
         actualizarUI()
@@ -110,10 +128,6 @@ class VozActivity : AppCompatActivity() {
     // ---------- Escuchar a la persona ----------
 
     private fun pedirVoz() {
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            avisar("Este teléfono no tiene reconocimiento de voz.")
-            return
-        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -137,21 +151,173 @@ class VozActivity : AppCompatActivity() {
         }
     }
 
+    private fun hayInternet(): Boolean = try {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps != null &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Con internet usa el reconocimiento de Google; sin internet (o si falla) usa Vosk. */
     private fun empezarEscucha() {
+        when {
+            hayInternet() && SpeechRecognizer.isRecognitionAvailable(this) -> escucharConGoogle()
+            modelo != null -> escucharConVosk()
+            cargandoVosk -> avisar("Estoy preparando la voz sin internet. Inténtalo en unos segundos.")
+            else -> avisar("No puedo escucharte ahora. Conéctate a internet e inténtalo otra vez.")
+        }
+    }
+
+    private fun escucharConGoogle() {
+        usandoVosk = false
         estado = Estado.ESCUCHANDO
         prepararReconocedor()
-        val r = reconocedor ?: return
+        val r = reconocedor ?: run {
+            if (modelo != null) escucharConVosk() else avisar("Este teléfono no tiene reconocimiento de voz.")
+            return
+        }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-MX")
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
             // Espera ~1.5 s de silencio: así la persona termina su frase completa
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
-            // Primero sin internet; si el teléfono no tiene el español descargado, se reintenta con internet
-            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, sinConexion)
         }
         r.startListening(intent)
         actualizarUI()
+    }
+
+    // ---------- Vosk (sin internet, dentro de la app) ----------
+
+    /** Copia el modelo de español desde los assets y lo carga, en segundo plano. */
+    private fun cargarVosk() {
+        cargandoVosk = true
+        Thread {
+            try {
+                val destino = File(filesDir, "model-es")
+                val marca = File(filesDir, "model-es.ok")
+                val version = packageManager.getPackageInfo(packageName, 0).lastUpdateTime.toString()
+                if (!(marca.exists() && destino.exists() && marca.readText() == version)) {
+                    destino.deleteRecursively()
+                    marca.delete()
+                    copiarAssets("model-es", destino)
+                    marca.writeText(version)
+                }
+                val m = Model(destino.absolutePath)
+                runOnUiThread {
+                    modelo = m
+                    gramatica = construirGramatica()
+                    cargandoVosk = false
+                }
+            } catch (e: Throwable) {
+                runOnUiThread { cargandoVosk = false }
+            }
+        }.start()
+    }
+
+    private fun copiarAssets(origen: String, destino: File) {
+        val hijos = assets.list(origen) ?: emptyArray()
+        if (hijos.isEmpty()) {
+            try {
+                destino.parentFile?.mkdirs()
+                assets.open(origen).use { entrada ->
+                    destino.outputStream().use { salida -> entrada.copyTo(salida) }
+                }
+            } catch (e: IOException) {
+                destino.mkdirs() // era una carpeta vacía
+            }
+        } else {
+            destino.mkdirs()
+            for (h in hijos) copiarAssets("$origen/$h", File(destino, h))
+        }
+    }
+
+    /** Lista cerrada de palabras: nombres de libros, números y "capítulo"/"versículo". */
+    private fun construirGramatica(): String {
+        val palabras = linkedSetOf<String>()
+        for (l in libros) {
+            for (p in l.nombre.lowercase().split(" ", ".")) {
+                if (p.length > 1 && !p[0].isDigit()) palabras.add(p)
+            }
+        }
+        palabras.addAll(
+            listOf(
+                "san", "libro", "salmo", "cantar", "capítulo", "capitulo", "versículo", "versiculo",
+                "primera", "primero", "primer", "segunda", "segundo", "tercera", "tercero", "tercer",
+                "uno", "un", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
+                "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "dieciseis",
+                "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintiún", "veintiun",
+                "veintidós", "veintidos", "veintitrés", "veintitres", "veinticuatro", "veinticinco",
+                "veintiséis", "veintiseis", "veintisiete", "veintiocho", "veintinueve", "treinta",
+                "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa", "cien", "ciento",
+                "y", "de"
+            )
+        )
+        val arreglo = JSONArray()
+        palabras.forEach { arreglo.put(it) }
+        arreglo.put("[unk]")
+        return arreglo.toString()
+    }
+
+    private fun escucharConVosk() {
+        val m = modelo
+        if (m == null) {
+            avisar("No puedo escucharte ahora. Conéctate a internet e inténtalo otra vez.")
+            return
+        }
+        estado = Estado.ESCUCHANDO
+        usandoVosk = true
+        try {
+            val rec = Recognizer(m, 16000f, gramatica)
+            val servicio = SpeechService(rec, 16000f)
+            voskService = servicio
+            servicio.startListening(oyenteVosk, 8000)
+        } catch (e: Throwable) {
+            detenerVosk()
+            avisar("No pude activar el micrófono.")
+            return
+        }
+        actualizarUI()
+    }
+
+    private fun detenerVosk() {
+        usandoVosk = false
+        val s = voskService ?: return
+        voskService = null
+        try { s.cancel() } catch (e: Throwable) {}
+        try { s.shutdown() } catch (e: Throwable) {}
+    }
+
+    private val oyenteVosk = object : VoskListener {
+        override fun onPartialResult(hypothesis: String?) {}
+        override fun onFinalResult(hypothesis: String?) {}
+
+        override fun onResult(hypothesis: String?) {
+            if (estado != Estado.ESCUCHANDO || !usandoVosk) return
+            val frase = try {
+                JSONObject(hypothesis ?: "{}").optString("text")
+            } catch (e: Exception) {
+                ""
+            }
+            if (frase.isBlank() || frase == "[unk]") return // seguir escuchando
+            detenerVosk()
+            procesar(listOf(frase))
+        }
+
+        override fun onError(exception: Exception?) {
+            if (estado != Estado.ESCUCHANDO || !usandoVosk) return
+            detenerVosk()
+            avisar("No pude activar el micrófono.")
+        }
+
+        override fun onTimeout() {
+            if (estado != Estado.ESCUCHANDO || !usandoVosk) return
+            detenerVosk()
+            avisar("No te escuché. Toca la bola e inténtalo otra vez.")
+        }
     }
 
     private val oyente = object : RecognitionListener {
@@ -164,11 +330,12 @@ class VozActivity : AppCompatActivity() {
         override fun onEvent(eventType: Int, params: Bundle?) {}
 
         override fun onError(error: Int) {
-            if (estado != Estado.ESCUCHANDO) return
-            // 12 y 13: idioma no disponible sin conexión -> reintentar usando internet
-            if (sinConexion && (error == 12 || error == 13 || error == SpeechRecognizer.ERROR_CLIENT)) {
-                sinConexion = false
-                empezarEscucha()
+            if (estado != Estado.ESCUCHANDO || usandoVosk) return
+            val silencio = error == SpeechRecognizer.ERROR_NO_MATCH ||
+                error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+            // Si Google falla (sin red, ocupado…), se intenta con la voz que va dentro de la app
+            if (!silencio && modelo != null) {
+                escucharConVosk()
                 return
             }
             avisar(
@@ -186,7 +353,7 @@ class VozActivity : AppCompatActivity() {
         }
 
         override fun onResults(results: Bundle?) {
-            if (estado != Estado.ESCUCHANDO) return
+            if (estado != Estado.ESCUCHANDO || usandoVosk) return
             procesar(results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION))
         }
     }
@@ -266,6 +433,7 @@ class VozActivity : AppCompatActivity() {
         else transcurrido
         ticketAviso++
         reconocedor?.cancel()
+        detenerVosk()
         lector.detener()
 
         val total = libros[libro].capitulos[capitulo].size

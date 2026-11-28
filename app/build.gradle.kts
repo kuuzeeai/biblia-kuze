@@ -13,6 +13,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        ndk {
+            // Solo celulares modernos (reduce el tamaño del APK)
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildFeatures {
@@ -67,4 +71,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+
+    // Reconocimiento de voz sin internet (solo en la versión "voz")
+    "vozImplementation"("net.java.dev.jna:jna:5.13.0@aar")
+    "vozImplementation"("com.alphacephei:vosk-android:0.3.47@aar")
 }
