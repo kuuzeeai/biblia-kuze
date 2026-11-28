@@ -91,7 +91,9 @@ class LectorVoz {
         val todas = try { tts?.voices?.toList() ?: emptyList() } catch (e: Exception) { emptyList() }
         val es = todas.filter { it.locale.language == "es" }
         val sinRed = es.filter { !it.isNetworkConnectionRequired }
-        return if (hayInternet() || sinRed.isEmpty()) es else sinRed
+        // Siempre se prefieren las voces instaladas en el teléfono (funcionan sin internet).
+        // Las de red solo se usan si no hay ninguna instalada.
+        return if (sinRed.isEmpty()) es else sinRed
     }
 
     /** Voces ordenadas para el género pedido: mejor encaje y mayor calidad primero. */

@@ -39,6 +39,7 @@ class VozActivity : AppCompatActivity() {
     private var estado = Estado.REPOSO
     private var ticketAviso = 0
     private var hayContenido = false
+    private var sinConexion = true // primero se intenta el reconocimiento sin internet
 
     private var libro = 0
     private var capitulo = 0
@@ -139,6 +140,8 @@ class VozActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
             // Espera ~1.5 s de silencio: así la persona termina su frase completa
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            // Primero sin internet; si el teléfono no tiene el español descargado, se reintenta con internet
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, sinConexion)
         }
         r.startListening(intent)
         actualizarUI()
@@ -155,6 +158,12 @@ class VozActivity : AppCompatActivity() {
 
         override fun onError(error: Int) {
             if (estado != Estado.ESCUCHANDO) return
+            // 12 y 13: idioma no disponible sin conexión -> reintentar usando internet
+            if (sinConexion && (error == 12 || error == 13 || error == SpeechRecognizer.ERROR_CLIENT)) {
+                sinConexion = false
+                empezarEscucha()
+                return
+            }
             avisar(
                 when (error) {
                     SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
